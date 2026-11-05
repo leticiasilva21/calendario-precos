@@ -116,6 +116,7 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .aj-dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;margin:0}.aj-dl dt{font-weight:700}.aj-dl dd{margin:0;color:var(--mute)}
 .pa-guia{margin:12px 14px 0;padding:10px 12px;background:var(--orange-soft);border-radius:8px;font-size:.82rem;line-height:1.4}
 .pa-guia ol{margin:6px 0 0;padding-left:18px}.pa-guia li{margin:3px 0}
+.au-grav{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 12px;margin:8px 0;border-radius:8px;background:var(--orange-soft)}
 .massa{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 8px}.massa button{padding:3px 10px;font-size:.8rem}.massa .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
 tr.rsel td{background:var(--orange-soft)}
 .rea-nmin{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.rea-nmin label{font-weight:700}
@@ -374,7 +375,7 @@ function telaCal() {
   document.querySelectorAll("[data-dow]").forEach((b) => (b.onclick = () => {
     const d = +b.dataset.dow; S.dows.has(d) ? S.dows.delete(d) : S.dows.add(d);
     localStorage.setItem("cp-dows", JSON.stringify([...S.dows])); const on = b.classList.toggle("on"); b.setAttribute("aria-pressed", on); b.title = on ? "Ligado: entra na seleção" : "Desligado: fora da seleção";
-    if (S.grid && S.selD.size) { selecionarDatasPelosDias(); desenharGrade(); }
+    if (S.grid) { selecionarDatasPelosDias(); desenharGrade(); } // clicar num dia da semana seleciona as datas do período nos dias ligados
   }));
   $("#f-busca").oninput = (e) => { S.busca = e.target.value; if (S.grid) desenharGrade(); };
   $("#f-refresh").onclick = async (e) => {
@@ -1147,11 +1148,41 @@ function desenharAuto(msg) {
 async function verRodada(id, region) {
   const run = AUTO_RUNS.find((r) => r.id === id); const det = $("#au-det"); if (!det || !run) return;
   const pr = (run.resumo?.por_regiao || []).slice().sort((a, b) => (b.itens ?? 0) - (a.itens ?? 0));
+  const hojeRun = new Date(new Date(run.started_at).getTime() - 3 * 3600e3).toISOString().slice(0, 10) === hoje();
+  const gv = run.resumo?.gravacao;
+  const podeGravar = run.status === "ok" && hojeRun && !(gv && gv.feitas?.length);
+  const regsCom = pr.filter((x) => x.itens);
   det.innerHTML = `<div class="au-det"><h3>Rodada de ${fmtHora(run.started_at)} — por região</h3>
+    ${gv?.feitas?.length ? `<div class="aviso" style="background:var(--ok-soft);color:var(--ok)">Gravada na Stays por ${esc(gv.por || "")}: ${gv.ok} diárias${gv.erro ? `, <b class="msg">${gv.erro} com erro</b>` : ""} (${gv.feitas.length} regiões).</div>` : ""}
+    ${podeGravar && regsCom.length ? `<div class="au-grav"><b>Aprovou?</b> <span class="small mute">Marque as regiões e grave na Stays exatamente o "iria para" desta rodada.</span>
+       <label class="small"><input type="checkbox" id="gr-todas" checked> todas</label>
+       <button class="prim" id="gr-btn">Gravar esta rodada na Stays</button><span id="gr-msg" class="small"></span></div>`
+      : !hojeRun ? `<p class="small mute">Rodada de outro dia: para gravar, use a rodada mais recente.</p>` : ""}
     <div class="rtab" style="max-height:260px"><table class="t"><tr><th>Região</th><th>Unidades</th><th>Mudariam</th><th>Sobem</th><th>Descem</th><th>Já certas</th><th>Travadas</th><th>Protegidas</th><th></th></tr>
     ${pr.map((x) => x.pulada || x.erro ? `<tr class="mute"><td>${esc(x.region)}</td><td colspan="7">${esc(x.pulada ? "fora: " + x.pulada : "erro: " + x.erro)}</td><td></td></tr>`
-      : `<tr><td>${esc(x.region)}</td><td>${x.units}</td><td><b>${x.itens}</b></td><td class="up-t">${x.sobem}</td><td class="dn-t">${x.descem}</td><td>${x.ja_certas}</td><td>${x.travadas}</td><td>${x.protegidas ?? 0}</td>
+      : `<tr><td>${podeGravar && x.itens ? `<input type="checkbox" data-grr="${esc(x.region)}" checked> ` : ""}${esc(x.region)}</td><td>${x.units}</td><td><b>${x.itens}</b></td><td class="up-t">${x.sobem}</td><td class="dn-t">${x.descem}</td><td>${x.ja_certas}</td><td>${x.travadas}</td><td>${x.protegidas ?? 0}</td>
         <td>${x.itens ? `<button data-rg-run="${esc(x.region)}">Ver diárias</button>` : ""}</td></tr>`).join("")}</table></div><div id="au-itens"></div></div>`;
+  if ($("#gr-todas")) $("#gr-todas").onchange = (e) => det.querySelectorAll("[data-grr]").forEach((c) => (c.checked = e.target.checked));
+  if ($("#gr-btn")) $("#gr-btn").onclick = async () => {
+    const regioes = [...det.querySelectorAll("[data-grr]:checked")].map((c) => c.dataset.grr);
+    if (!regioes.length) return ($("#gr-msg").innerHTML = `<span class="msg">Marque pelo menos uma região.</span>`);
+    const b = $("#gr-btn"); b.disabled = true; $("#gr-msg").innerHTML = `<span class="mute">Calculando o resumo…</span>`;
+    try {
+      const R = await api("auto_gravar", { run_id: id, regioes, fase: "previa" });
+      $("#gr-msg").innerHTML = ""; b.disabled = false;
+      const aviso = (R.pulados ? `<div class="aviso">${R.pulados} noite(s) foram ajustadas depois da rodada e serão puladas (o ajuste mais recente vale).</div>` : "")
+        + `<p class="small mute">${regioes.length} região(ões). A gravação vai uma região por vez para respeitar o limite da Stays — pode levar alguns minutos.</p>`;
+      abrirModal(htmlResumo(R, `Gravar a rodada de ${fmtHora(run.started_at)} na Stays`, aviso), R.n ? `Confirmar e gravar ${R.n} diárias` : null, async () => {
+        const ok = $("#m-ok"); ok.disabled = true;
+        try { let st;
+          do { st = await api("auto_gravar", { run_id: id, regioes, fase: "gravar" }); ok.textContent = `Gravando… ${st.feitas} de ${st.feitas + st.faltam} regiões`; } while (st.faltam > 0);
+          fecharModal(); S.grid = null;
+          await carregarAuto(st.erro ? `<span class="msg">Gravado com ${st.erro} erro(s) — reprecificar: ${esc((st.erros || []).join(" | "))}</span>` : `<span class="okmsg">Rodada gravada na Stays: ${st.ok} diárias. Está no Histórico, com Desfazer.</span>`);
+          verRodada(id);
+        } catch (e) { $("#m-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; ok.disabled = false; ok.textContent = "Tentar de novo"; }
+      });
+    } catch (e) { $("#gr-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; b.disabled = false; }
+  };
   det.querySelectorAll("[data-rg-run]").forEach((b) => (b.onclick = async () => {
     const box = $("#au-itens"); box.innerHTML = "Carregando…";
     try { const { itens } = await api("auto_itens", { run_id: id, region: b.dataset.rgRun, limit: 1500 });
