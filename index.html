@@ -70,6 +70,12 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .au-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px 18px;margin-top:8px}
 .au-l{display:grid;gap:2px}.au-l span{font-weight:700;font-size:.85rem}.au-l small{color:var(--mute);font-size:.75rem}
 .au-det{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:10px}
+.aj{max-width:1180px}
+.aj-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-top:10px}
+.aj-s{border:1px solid var(--line);border-radius:12px;padding:12px 16px;background:#fff}
+.aj-s h3{margin:0 0 6px;font-size:1rem;color:var(--navy)}
+.aj-s ul{margin:0;padding-left:18px}.aj-s li{margin:4px 0;line-height:1.45}
+.aj-dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;margin:0}.aj-dl dt{font-weight:700}.aj-dl dd{margin:0;color:var(--mute)}
 .massa{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 8px}.massa button{padding:3px 10px;font-size:.8rem}.massa .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
 tr.rsel td{background:var(--orange-soft)}
 .rea-nmin{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.rea-nmin label{font-weight:700}
@@ -292,7 +298,7 @@ try { const f = JSON.parse(localStorage.getItem("cp-dows") || "null"); if (Array
 
 function cabecalho() {
   return `<header class="bar-top"><div class="in"><img src="logo-branco.png" alt="Carpediem Homes"><span class="t">Calendário de Preços</span>
-   <nav class="tabs">${[["cal", "Calendário"], ["auto", "Automação"], ["log", "Histórico"]].map(([k, n]) => `<button data-tab="${k}" class="${S.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
+   <nav class="tabs">${[["cal", "Calendário"], ["auto", "Automação"], ["log", "Histórico"], ["ajuda", "Como funciona"]].map(([k, n]) => `<button data-tab="${k}" class="${S.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
    <span class="user"><span>${esc(S.user)}</span><button id="sair">Sair</button></span></div></header>`;
 }
 function ligarCab() {
@@ -302,6 +308,7 @@ function ligarCab() {
 function render() {
   if (S.tab === "cal") return telaCal();
   if (S.tab === "auto") return telaAuto();
+  if (S.tab === "ajuda") return telaAjuda();
   return telaLog();
 }
 
@@ -1098,6 +1105,61 @@ async function verRodada(id, region) {
     catch (e) { box.innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
   }));
   det.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* ---------- como funciona (premissas) ---------- */
+function telaAjuda() {
+  const sec = (t, corpo) => `<section class="aj-s"><h3>${t}</h3>${corpo}</section>`;
+  $("#app").innerHTML = cabecalho() + `<div class="wrap aj">
+   <h2>Como funciona o Calendário de Preços</h2>
+   <p class="mute">As premissas da ferramenta em poucas linhas. Na dúvida, a regra de ouro: <b>preço só se mexe por aqui</b>, nunca direto na Stays.</p>
+   <div class="aj-grid">
+   ${sec("1. Diária base", `<ul>
+     <li>Cada anúncio tem uma <b>diária base por noite</b>, que muda conforme o período (temporada ou feriado).</li>
+     <li>Origem: o <b>backup da Stays de 27/10/2026</b> (temporadas e feriados). Anúncios criados depois usam a diária mais próxima da média dos dias sem feriado.</li>
+     <li>A referência é sempre a diária do <b>menor mínimo de noites</b> do período; as outras faixas (3, 7, 15+ noites) seguem a proporção.</li>
+     <li>A base é <b>fixa</b>: não muda sozinha. Mudança feita direto na Stays aparece como desvio de cor na grade, não altera a base.</li></ul>`)}
+   ${sec("2. Preço final = base × ajuste", `<ul>
+     <li>Todo ajuste é um <b>% sobre a base</b>, de −25% a +300%. Preço gravado = base × (1 + ajuste).</li>
+     <li><b>Não acumula</b>: aplicar −20% duas vezes continua −20%. O ajuste novo <b>substitui</b> o anterior.</li>
+     <li><b>Liberar 1 noite</b> cria a faixa de 1 noite com +x% sobre a diária mínima já ajustada.</li>
+     <li><b>Voltar à base</b> zera o ajuste e a 1 noite.</li>
+     <li>A Stays não tem mais <b>Condição (%)</b> por região: tudo fica dentro da diária, visível aqui.</li></ul>`)}
+   ${sec("3. Grade do calendário", `<ul>
+     <li><b>Cor da célula</b>: preço atual vs. base — verde abaixo, branco igual, laranja acima.</li>
+     <li><b>Ocupação da região</b>: unidades ocupadas ÷ em operação (sem duplicados, margens de manobra e contratos encerrados).</li>
+     <li><b>Sugestão da automação</b> e, na célula, <s>preço atual</s> → <b>sugerido</b>.</li>
+     <li><b>Dias sem reserva</b> e <b>vendas nos últimos 7 dias</b>: os indicadores que freiam ou aceleram a sugestão.</li>
+     <li>Passe o mouse em qualquer número para ver o detalhe.</li></ul>`)}
+   ${sec("4. Como gravar", `<ul>
+     <li>Selecione anúncios × datas (arraste como numa planilha; Shift estende, Ctrl/Cmd soma).</li>
+     <li>Escolha a ação no painel lateral e clique em <b>→</b>: abre a <b>prévia antes → depois</b>. Nada vai para a Stays sem <b>Confirmar</b>.</li>
+     <li>Depois de gravar, a ferramenta <b>relê a Stays</b> e avisa qualquer diária que não ficou como esperado.</li>
+     <li>Tudo fica no <b>Histórico</b> com o seu nome, e cada lote pode ser <b>desfeito</b>.</li></ul>`)}
+   ${sec("5. Sugestão da automação", `<ul>
+     <li><b>Tabela ocupação × antecedência</b>: diz o % sugerido conforme a ocupação da região e quantos dias faltam para o check-in.</li>
+     <li>Cada região usa a tabela do seu <b>grupo</b> (Rápida, Média, Lenta ou um grupo criado por você) ou uma <b>tabela própria</b>. As atuais foram calculadas a partir dos últimos 180 dias de vendas.</li>
+     <li><b>Freio</b>: se a noite fica muitos dias sem reserva (comparado ao intervalo normal da região naquela antecedência), a sugestão usa só parte do acréscimo. Vale só para acréscimos.</li>
+     <li><b>Aceleração</b>: se a noite vende acima do normal na última semana, soma pontos à sugestão.</li>
+     <li>O relógio do freio recomeça a cada reserva nova e a cada ajuste feito pela ferramenta.</li></ul>`)}
+   ${sec("6. Rodadas automáticas", `<ul>
+     <li>Rodam às <b>7h e 14h</b>, olhando os próximos <b>90 dias</b>, nas regiões com 5+ unidades.</li>
+     <li>Proteções: no máximo <b>20 pontos por rodada</b> (o preço vai aos poucos), ignora diferenças menores que 5 pontos, <b>noite ajustada à mão fica fora por 7 dias</b>, para sozinha se passar do limite de diárias.</li>
+     <li>Hoje estão em <b>modo teste</b>: só registram o que fariam. Confira em Automação → Rodadas automáticas.</li>
+     <li>Dá para <b>pausar</b> a qualquer momento.</li></ul>`)}
+   ${sec("7. Combinados da equipe", `<ul>
+     <li><b>Não mexer em preço nem em Condição (%) direto na Stays</b> — senão a Stays fica diferente do que a ferramenta mostra.</li>
+     <li>Ajustes manuais pela grade; a automação respeita o que foi feito à mão por 7 dias.</li>
+     <li>Antes de grandes mudanças, use a prévia e confira o resumo (quantas sobem/descem, variação média e extremos).</li>
+     <li>Dúvida ou erro: veja o Histórico — ele mostra quem, quando, o antes e o depois.</li></ul>`)}
+   ${sec("Glossário", `<dl class="aj-dl">
+     <dt>Antecedência</dt><dd>dias entre hoje e o check-in da noite.</dd>
+     <dt>Intervalo normal</dt><dd>tempo típico entre uma reserva e a seguinte para a mesma noite, na região (por faixa de antecedência).</dd>
+     <dt>Ritmo</dt><dd>reservas feitas nos últimos 7 dias para a noite ÷ o normal da região nessa antecedência.</dd>
+     <dt>Grupo de regiões</dt><dd>regiões que compartilham a mesma tabela de automação.</dd>
+     <dt>Margem de manobra</dt><dd>anúncio de reserva técnica; não entra na ocupação nem na automação.</dd></dl>`)}
+   </div></div>`;
+  ligarCab();
 }
 
 /* ---------- histórico ---------- */
