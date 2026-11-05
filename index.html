@@ -687,7 +687,7 @@ let LOG_ROWS = [];
 function vazioLog() {
   const filtro = $("#lg-reg")?.value || $("#lg-user")?.value.trim();
   return `<div class="vazio-log"><h2>${filtro ? "Nada encontrado com esse filtro" : "Ainda não há alterações registradas"}</h2>
-   <p class="mute">Aqui aparece cada gravação feita pela ferramenta: quem gravou, quando, qual ação (ajuste %, 1 noite, volta à base, sugestão da automação), em quais anúncios e datas, e o preço antes → depois. Mudanças na tabela de automação também ficam registradas.</p>
+   <p class="mute">Aqui aparece cada gravação feita pela ferramenta: quem gravou, quando, qual ação (ajuste %, 1 noite, volta à base, sugestão da automação), em quais anúncios e datas, e o preço antes → depois. Mudanças na tabela de automação também ficam registradas, assim como as diárias alteradas direto na Stays (nesse caso o preço novo vira a diária base).</p>
    <p class="mute">Cada lote tem o botão <b>Desfazer</b>, que mostra uma prévia e, depois de confirmar, devolve na Stays os valores de antes.</p></div>`;
 }
 /* desfazer: prévia (atual → valor anterior) a partir do log e confirmação */
@@ -706,7 +706,7 @@ function previaDesfazer(batch) {
       catch (e) { $("#m-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; ok.disabled = false; ok.textContent = "Tentar de novo"; }
     });
 }
-const NOMES_OP = { pct: "Ajuste %", one_night_on: "Liberou 1 noite", one_night_off: "Tirou 1 noite", reset: "Voltou à base", rebase: "Redefiniu base", desfazer: "Desfez", regras: "Alterou regras" };
+const NOMES_OP = { pct: "Ajuste %", one_night_on: "Liberou 1 noite", one_night_off: "Tirou 1 noite", reset: "Voltou à base", rebase: "Redefiniu base", desfazer: "Desfez", regras: "Alterou regras", base_stays: "Base atualizada (mudança feita direto na Stays)" };
 async function carregarLog() {
   try {
     const { rows } = await api("log", { region: $("#lg-reg").value || undefined, user: $("#lg-user").value.trim() || undefined, limit: 1000 });
@@ -720,7 +720,7 @@ async function carregarLog() {
        <td>${esc(b.region_name || "")}</td><td>${b.imoveis.size}<div class="small mute">${esc([...b.imoveis].slice(0, 2).join(", "))}${b.imoveis.size > 2 ? "…" : ""}</div></td>
        <td>${ds.length ? fmtD(ds[0]) + (ds.length > 1 ? " a " + fmtD(ds[ds.length - 1]) : "") : ""}</td>
        <td>${b.n}${b.erros ? ` <span class="msg">(${b.erros} com erro)</span>` : ""}<div class="small mute">${b.date ? "ex.: " + fmt(b.before) + " → " + fmt(b.after) : ""}</div></td>
-       <td>${b.batch_id && b.action !== "regras" && b.action !== "desfazer" && b.n - b.erros > 0 ? `<button data-rev="${b.batch_id}">Desfazer</button>` : ""}</td></tr>`; }).join("") || ""}</table>`;
+       <td>${b.batch_id && b.action !== "regras" && b.action !== "desfazer" && b.action !== "base_stays" && b.n - b.erros > 0 ? `<button data-rev="${b.batch_id}">Desfazer</button>` : ""}</td></tr>`; }).join("") || ""}</table>`;
     document.querySelectorAll("[data-rev]").forEach((b) => (b.onclick = () => previaDesfazer(b.dataset.rev)));
   } catch (e) { $("#lg").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
 }
