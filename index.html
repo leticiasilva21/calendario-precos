@@ -77,6 +77,20 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .kpis>div{background:var(--panel);border-radius:8px;padding:8px 12px;display:grid;min-width:110px}
 .kpis b{font-size:1.15rem;font-variant-numeric:tabular-nums}.kpis span{font-size:.78rem;color:var(--mute);font-weight:600}.kpis small{font-size:.74rem;color:var(--mute)}
 .rtab{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.ftab{overflow:auto;margin:10px 0}
+.ftab table{border-collapse:separate;border-spacing:0;font-size:.85rem}
+.ftab th,.ftab td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px 8px;text-align:center;white-space:nowrap}
+.ftab tr:first-child th{border-top:1px solid var(--line);background:var(--panel)}
+.ftab th.rh,.ftab th.cant{background:var(--panel);text-align:left;border-left:1px solid var(--line)}
+.ftab th.cant{font-size:.75rem;color:var(--mute)}
+.ftab th.addc,.ftab tr:last-child th{background:#fff;border:0}
+.ftab .faixa-lbl{display:inline-flex;align-items:center;gap:2px;font-weight:700}
+.ftab .faixa-lbl input{width:52px;padding:2px 4px}
+.ftab td{min-width:84px}
+.ftab td input{width:56px;text-align:right;padding:4px 6px;background:rgba(255,255,255,.75);font-weight:700}
+.ftab td span{margin-left:2px;color:var(--mute);font-size:.8rem}
+.ftab button.x{border:0;color:var(--mute);padding:0 4px;font-size:1rem;background:none;margin-left:4px}
+.ftab button.x:hover{color:var(--bad)}
 .mapa{overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px;margin-top:6px}
 .mapa table{border-collapse:collapse;font-size:.66rem}
 .mapa td{width:12px;min-width:12px;height:12px;border:1px solid #fff;padding:0}
@@ -568,93 +582,98 @@ async function executar(fn) {
   } catch (err) { $("#a-msg").innerHTML = `<span class="msg">${esc(err.message)}</span>`; btns.forEach((b) => (b.disabled = false)); }
 }
 
-/* ---------- automação ---------- */
-let REGRAS = [];
-async function telaAuto() {
-  $("#app").innerHTML = cabecalho() + `<div class="wrap card"><h2>Tabela de automação: ocupação × antecedência</h2>
-   <p class="mute">Para cada dia, o sistema calcula a ocupação da região tarifária e quantos dias faltam para o check-in. A primeira linha que encaixar define o ajuste sobre a diária base (de ${S.limites.PCT_MIN}% a +${S.limites.PCT_MAX}%). A sugestão aparece na grade do calendário; nada é gravado sem você clicar em <b>Aplicar sugestão</b>.</p>
-   <div id="rg">Carregando…</div></div>`;
-  ligarCab();
-  try { REGRAS = (await api("rules_get")).rules; desenharRegras(); } catch (e) { $("#rg").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
-}
-function desenharRegras(msg) {
-  $("#rg").innerHTML = `<table class="t"><tr><th>#</th><th>Ocupação de (%)</th><th>até (%)</th><th>Antecedência de (dias)</th><th>até (dias)</th><th>Ajuste (%)</th><th>Ativa</th><th></th></tr>
-   ${REGRAS.map((r, i) => `<tr><td>${i + 1}</td>${["occ_min", "occ_max", "lead_min", "lead_max", "pct"].map((k) => `<td><input type="number" data-i="${i}" data-k="${k}" value="${r[k] ?? ""}"></td>`).join("")}
-   <td><input type="checkbox" data-i="${i}" data-k="ativo" ${r.ativo !== false ? "checked" : ""} style="width:auto"></td>
-   <td><button data-up="${i}" title="Subir">↑</button> <button data-del="${i}" title="Apagar linha">Apagar</button></td></tr>`).join("")}</table>
-   <p><button id="r-add">+ Adicionar linha</button> <button class="prim" id="r-save">Salvar regras</button> <span id="r-msg">${msg || ""}</span></p>
-   <p class="mute small">Dica: as faixas são inclusivas (ex.: 0–40% e 40–60% — o dia com exatamente 40% cai na primeira linha). A ocupação tem uma casa decimal (ex.: 40,5%), então 0–40% seguido de 41–60% deixa um buraco entre 40,1% e 40,9%.</p>
-   <h2 style="margin-top:22px">Mapa das regras</h2><p class="mute small">Cada quadradinho mostra o ajuste da primeira regra ativa que encaixa (a mesma conta do servidor). Atualiza enquanto você edita, antes de salvar.</p>
-   <div id="r-mapa"></div>`;
-  document.querySelectorAll("#rg input[data-k]").forEach((inp) => (inp.oninput = inp.onchange = () => { const r = REGRAS[+inp.dataset.i]; r[inp.dataset.k] = inp.type === "checkbox" ? inp.checked : inp.value; desenharMapa(); }));
-  desenharMapa();
-  document.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => { REGRAS.splice(+b.dataset.del, 1); desenharRegras(); }));
-  document.querySelectorAll("[data-up]").forEach((b) => (b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [REGRAS[i - 1], REGRAS[i]] = [REGRAS[i], REGRAS[i - 1]]; desenharRegras(); } }));
-  $("#r-add").onclick = () => { REGRAS.push({ occ_min: 0, occ_max: 100, lead_min: 0, lead_max: 7, pct: 0, ativo: true }); desenharRegras(); };
-  $("#r-save").onclick = async () => {
-    try { await api("rules_save", { rules: REGRAS }); REGRAS = (await api("rules_get")).rules; S.grid = null; desenharRegras(`<span class="okmsg">Regras salvas.</span>`); }
-    catch (e) { $("#r-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; }
-  };
-}
-
-/* mesma regra do servidor (sugerir): primeira regra ativa, na ordem, com faixas inclusivas */
-function regraQueCasa(rs, occ, lead) {
+/* ---------- automação: tabela de faixas ocupação × antecedência ----------
+   Na tela é uma planilha; ao salvar vira uma regra por quadradinho (o motor do servidor não muda).
+   Faixas sem buraco: ocupação 0–30, 30–50… (o limite fica na faixa de baixo, porque a regra de cima vem primeiro);
+   antecedência 0–3, 4–7… e a última é "X ou mais". */
+const LEAD_ABERTO = 999;
+let AUTO = null, AUTO_ORIG = "";
+const AUTO_PADRAO = () => ({ occ: [30, 50, 70, 85, 100], lead: [3, 7, 14, 30, null],
+  pct: [[-20, -15, -10, -5, 0], [-12, -10, -5, 0, 0], [-5, 0, 0, 0, 0], [5, 5, 5, 0, 0], [20, 15, 10, 10, 5]] });
+function regraQueCasa(rs, occ, lead) { // mesma conta do servidor (sugerir)
   return rs.find((x) => occ >= Number(x.occ_min) && occ <= Number(x.occ_max) && lead >= x.lead_min && lead <= x.lead_max) || null;
 }
-function regrasAtivas() {
-  return REGRAS.map((r, i) => ({ ...r, n: i + 1, occ_min: Number(r.occ_min), occ_max: Number(r.occ_max), lead_min: Math.round(Number(r.lead_min)), lead_max: Math.round(Number(r.lead_max)), pct: Number(r.pct) }))
-    .filter((r) => r.ativo !== false && [r.occ_min, r.occ_max, r.lead_min, r.lead_max, r.pct].every(isFinite));
+const occIni = (i) => (i === 0 ? 0 : AUTO.occ[i - 1]);
+const leadIni = (j) => (j === 0 ? 0 : AUTO.lead[j - 1] + 1);
+function tabelaDeRegras(rs) {
+  rs = (rs || []).filter((r) => r.ativo !== false);
+  if (!rs.length) return AUTO_PADRAO();
+  const occ = [...new Set(rs.map((r) => Math.min(100, Number(r.occ_max))))].filter((v) => v > 0).sort((a, b) => a - b);
+  if (occ[occ.length - 1] !== 100) occ.push(100);
+  let lead = [...new Set(rs.map((r) => Math.round(Number(r.lead_max))))].sort((a, b) => a - b);
+  lead = lead.filter((v) => v < 400); lead.push(null);
+  const t = { occ, lead, pct: [] };
+  AUTO = t;
+  for (let i = 0; i < occ.length; i++) { t.pct.push([]);
+    for (let j = 0; j < lead.length; j++) { const r = regraQueCasa(rs, (occIni(i) + occ[i]) / 2, leadIni(j)); t.pct[i].push(r ? Number(r.pct) : ""); } }
+  return t;
 }
-const pctBR = (v) => v.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
-function lacunas(rs, leadMax) {
-  // por dia de antecedência, faixas de ocupação (passo 0,1%) sem regra; depois junta dias com as mesmas faixas
-  const porLead = [];
-  for (let lead = 0; lead <= leadMax; lead++) {
-    const fx = []; let ini = null;
-    for (let k = 0; k <= 1000; k++) { const o = k / 10, livre = !regraQueCasa(rs, o, lead);
-      if (livre && ini === null) ini = o; if (!livre && ini !== null) { fx.push([ini, (k - 1) / 10]); ini = null; } }
-    if (ini !== null) fx.push([ini, 100]);
-    porLead.push(fx.map((f) => f.join("-")).join("|"));
-  }
-  const out = []; let a = 0;
-  for (let lead = 1; lead <= leadMax + 1; lead++) if (lead > leadMax || porLead[lead] !== porLead[a]) {
-    if (porLead[a]) for (const f of porLead[a].split("|")) { const [x, y] = f.split("-").map(Number); { const b = lead - 1, fim = b === leadMax ? `${leadMax} dias ou mais` : null; const txt = a === b ? (fim || `${a} dia${a === 1 ? "" : "s"}`) : `${a}–${b === leadMax ? leadMax + "+" : b} dias`; out.push(`${pctBR(x)}–${pctBR(y)}% de ocupação, ${txt}: sem regra`); } }
-    a = lead;
-  }
-  return out;
-}
-function sobreposicoes(rs) {
+function regrasDaTabela() {
   const out = [];
-  for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
-    const A = rs[i], B = rs[j];
-    const o0 = Math.max(A.occ_min, B.occ_min), o1 = Math.min(A.occ_max, B.occ_max), l0 = Math.max(A.lead_min, B.lead_min), l1 = Math.min(A.lead_max, B.lead_max);
-    if (o0 <= o1 && l0 <= l1) out.push(`Regras #${A.n} e #${B.n} se sobrepõem em ${pctBR(o0)}–${pctBR(o1)}% / ${l0}–${l1} dias: vale a #${A.n} (${sinal(A.pct)}%), que vem primeiro.`);
-  }
-  // regra que nunca é usada (coberta por anteriores)
-  for (let j = 0; j < rs.length; j++) {
-    let usada = false; const B = rs[j];
-    for (let lead = B.lead_min; lead <= Math.min(B.lead_max, B.lead_min + 120) && !usada; lead++) for (let k = Math.ceil(B.occ_min * 2); k <= Math.floor(B.occ_max * 2) && !usada; k++) if (regraQueCasa(rs, k / 2, lead) === B) usada = true;
-    if (!usada) out.push(`A regra #${B.n} nunca é usada: as regras de cima já cobrem toda a faixa dela.`);
+  for (let i = 0; i < AUTO.occ.length; i++) for (let j = 0; j < AUTO.lead.length; j++) {
+    const p = AUTO.pct[i][j]; if (p === "" || p == null) continue;
+    out.push({ occ_min: occIni(i), occ_max: AUTO.occ[i], lead_min: leadIni(j), lead_max: AUTO.lead[j] ?? LEAD_ABERTO, pct: Number(p), ativo: true });
   }
   return out;
 }
-function desenharMapa() {
-  const el = $("#r-mapa"); if (!el) return;
-  const rs = regrasAtivas(), LMAX = 60;
-  let h = `<div class="mapa"><table><tr><th class="ax">ocup. ↓ / dias →</th>${Array.from({ length: LMAX + 1 }, (_, l) => `<th class="ax">${l % 5 === 0 ? l : ""}</th>`).join("")}</tr>`;
-  for (let o = 100; o >= 0; o -= 5) {
-    h += `<tr><th class="ax">${o}%</th>`;
-    for (let l = 0; l <= LMAX; l++) {
-      const r = regraQueCasa(rs, o, l);
-      h += r ? `<td style="background:${corDesvio(r.pct) || "#fff"}" title="${o}% · ${l} dias → regra #${r.n}: ${sinal(r.pct)}%"></td>` : `<td class="vazio" title="${o}% · ${l} dias → sem regra"></td>`;
-    }
-    h += `</tr>`;
-  }
-  h += `</table></div><div class="legenda" style="margin:6px 0"><div class="itens"><span class="it"><span class="escala"></span>−25% … 0 … +50% ou mais</span><span class="it"><span class="sw vazio"></span>Sem cobertura (nenhuma regra)</span></div></div>`;
-  const gaps = lacunas(rs, LMAX + 1), sob = sobreposicoes(rs);
-  const avisos = (gaps.length ? `<div class="aviso"><b>Lacunas</b> (dias sem sugestão):<ul>${gaps.slice(0, 12).map((g) => `<li>${g}</li>`).join("")}</ul>${gaps.length > 12 ? `… e mais ${gaps.length - 12}.` : ""}</div>` : `<div class="aviso" style="background:var(--ok-soft);color:var(--ok)">Sem lacunas: toda ocupação de 0 a 100% tem regra até ${LMAX}+ dias.</div>`)
-    + (sob.length ? `<div class="aviso"><b>Sobreposições</b>:<ul>${sob.map((x) => `<li>${x}</li>`).join("")}</ul></div>` : "");
-  el.innerHTML = avisos + h;
+function validarTabela() {
+  const L = S.limites, o = AUTO.occ, l = AUTO.lead;
+  for (let i = 0; i < o.length - 1; i++) if (!(o[i] > occIni(i) && o[i] < 100)) return `Os limites de ocupação precisam subir de cima para baixo e ficar entre 0 e 100% (linha ${i + 1}).`;
+  for (let j = 0; j < l.length - 1; j++) if (!(Number.isInteger(l[j]) && l[j] >= leadIni(j))) return `Os limites de antecedência precisam ser dias inteiros e crescentes (coluna ${j + 1}).`;
+  for (const lin of AUTO.pct) for (const p of lin) if (p !== "" && (!isFinite(Number(p)) || Number(p) < L.PCT_MIN || Number(p) > L.PCT_MAX)) return `Use ajustes entre ${L.PCT_MIN}% e +${L.PCT_MAX}% (ou deixe vazio para não sugerir nada).`;
+  return null;
+}
+async function telaAuto() {
+  $("#app").innerHTML = cabecalho() + `<div class="wrap card"><h2>Automação: ocupação × antecedência</h2>
+   <p class="mute">Cada quadradinho é o ajuste sobre a diária base quando a ocupação da região e a antecedência do check-in caem naquela faixa (de ${S.limites.PCT_MIN}% a +${S.limites.PCT_MAX}%). Quadradinho vazio = sem sugestão. A sugestão aparece na grade do calendário; nada é gravado na Stays sem você aplicar.</p>
+   <div id="rg">Carregando…</div></div>`;
+  ligarCab();
+  try { const rs = (await api("rules_get")).rules; AUTO = tabelaDeRegras(rs); AUTO_ORIG = JSON.stringify(AUTO); desenharTabela(); }
+  catch (e) { $("#rg").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
+}
+function desenharTabela(msg) {
+  const o = AUTO.occ, l = AUTO.lead, mudou = JSON.stringify(AUTO) !== AUTO_ORIG;
+  let h = `<div class="ftab"><table><tr><th class="cant">Ocupação ↓ · Antecedência →</th>`;
+  l.forEach((v, j) => {
+    h += `<th class="ch"><div class="faixa-lbl">${leadIni(j)}${v == null ? " dias ou mais" : `–<input type="number" min="0" step="1" data-lead="${j}" value="${v}" aria-label="Até quantos dias"> dias`}</div>
+      ${l.length > 1 ? `<button class="x" data-dlead="${j}" title="Apagar esta coluna">×</button>` : ""}</th>`;
+  });
+  h += `<th class="addc"><button id="add-lead" title="Dividir a última coluna em duas">+ coluna</button></th></tr>`;
+  o.forEach((v, i) => {
+    h += `<tr><th class="rh"><div class="faixa-lbl">${occIni(i)}–${v === 100 ? "100" : `<input type="number" min="1" max="99" step="1" data-occ="${i}" value="${v}" aria-label="Até qual ocupação">`}%</div>
+      ${o.length > 1 ? `<button class="x" data-docc="${i}" title="Apagar esta linha">×</button>` : ""}</th>`;
+    l.forEach((_, j) => { const p = AUTO.pct[i][j];
+      h += `<td style="background:${p === "" ? "" : corDesvio(Number(p)) || "#fff"}"><input type="number" step="1" data-p="${i},${j}" value="${p}" placeholder="—" aria-label="Ajuste em %"><span>%</span></td>`; });
+    h += `<td></td></tr>`;
+  });
+  h += `<tr><th class="rh"><button id="add-occ" title="Dividir a última linha em duas">+ linha</button></th></tr></table></div>
+   <p class="small mute">O limite de cada faixa de ocupação fica na faixa de cima da tabela (ex.: exatamente 30% cai em 0–30%). A ocupação é a mesma da linha "Ocupação da região" no calendário.</p>
+   <p><button class="prim" id="r-save" ${mudou ? "" : "disabled"}>Salvar tabela</button> ${mudou ? `<button id="r-undo">Descartar mudanças</button>` : ""} <button id="r-padrao" title="Preenche com a tabela de exemplo">Usar tabela de exemplo</button> <span id="r-msg">${msg || (mudou ? `<span class="mute">Há mudanças não salvas.</span>` : "")}</span></p>`;
+  $("#rg").innerHTML = h;
+  const redesenhar = () => { const a = document.activeElement?.dataset; const key = a && (a.p || a.occ || a.lead); desenharTabela();
+    if (key) { const el = document.querySelector(`[data-p="${a.p}"],[data-occ="${a.occ}"],[data-lead="${a.lead}"]`); el?.focus(); } };
+  document.querySelectorAll("[data-p]").forEach((inp) => {
+    inp.onchange = () => { const [i, j] = inp.dataset.p.split(",").map(Number); AUTO.pct[i][j] = inp.value === "" ? "" : Number(inp.value); redesenhar(); };
+    inp.oninput = () => { const v = inp.value; inp.parentElement.style.background = v === "" ? "" : corDesvio(Number(v)) || "#fff"; };
+    inp.onkeydown = (e) => { // setas andam pela tabela
+      const [i, j] = inp.dataset.p.split(",").map(Number); const d = { ArrowUp: [-1, 0], ArrowDown: [1, 0], Enter: [1, 0] }[e.key]; if (!d) return;
+      e.preventDefault(); inp.onchange(); document.querySelector(`[data-p="${i + d[0]},${j + d[1]}"]`)?.focus(); };
+  });
+  document.querySelectorAll("[data-occ]").forEach((inp) => (inp.onchange = () => { AUTO.occ[+inp.dataset.occ] = Number(inp.value); redesenhar(); }));
+  document.querySelectorAll("[data-lead]").forEach((inp) => (inp.onchange = () => { AUTO.lead[+inp.dataset.lead] = Math.round(Number(inp.value)); redesenhar(); }));
+  document.querySelectorAll("[data-docc]").forEach((b) => (b.onclick = () => { const i = +b.dataset.docc; AUTO.occ.splice(i, 1); AUTO.pct.splice(i, 1); AUTO.occ[AUTO.occ.length - 1] = 100; desenharTabela(); }));
+  document.querySelectorAll("[data-dlead]").forEach((b) => (b.onclick = () => { const j = +b.dataset.dlead; AUTO.lead.splice(j, 1); AUTO.pct.forEach((r) => r.splice(j, 1)); AUTO.lead[AUTO.lead.length - 1] = null; desenharTabela(); }));
+  $("#add-occ").onclick = () => { const n = AUTO.occ.length, ini = occIni(n - 1); if (100 - ini < 2) return; AUTO.occ.splice(n - 1, 0, Math.round((ini + 100) / 2)); AUTO.pct.splice(n - 1, 0, [...AUTO.pct[n - 1]]); desenharTabela(); };
+  $("#add-lead").onclick = () => { const n = AUTO.lead.length, ini = leadIni(n - 1); AUTO.lead.splice(n - 1, 0, ini + (ini < 30 ? 14 : 30)); AUTO.pct.forEach((r) => r.splice(n - 1, 0, r[n - 1])); desenharTabela(); };
+  $("#r-padrao").onclick = () => { AUTO = AUTO_PADRAO(); desenharTabela(); };
+  if ($("#r-undo")) $("#r-undo").onclick = () => { AUTO = JSON.parse(AUTO_ORIG); desenharTabela(); };
+  $("#r-save").onclick = async () => {
+    const e = validarTabela(); if (e) return ($("#r-msg").innerHTML = `<span class="msg">${e}</span>`);
+    const rules = regrasDaTabela(); if (!rules.length) return ($("#r-msg").innerHTML = `<span class="msg">Preencha pelo menos um quadradinho.</span>`);
+    $("#r-save").disabled = true;
+    try { await api("rules_save", { rules }); AUTO = tabelaDeRegras((await api("rules_get")).rules); AUTO_ORIG = JSON.stringify(AUTO); S.grid = null; desenharTabela(`<span class="okmsg">Tabela salva. A sugestão do calendário já usa os novos valores.</span>`); }
+    catch (err) { $("#r-msg").innerHTML = `<span class="msg">${esc(err.message)}</span>`; $("#r-save").disabled = false; }
+  };
 }
 
 /* ---------- histórico ---------- */
