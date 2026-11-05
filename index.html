@@ -51,7 +51,10 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .g .dh.we{background:#f3f4f8}
 .g .dh.sel{background:var(--orange);color:#fff}.g .dh.sel small{color:#fff}
 .g td.c{text-align:center;padding:3px 2px;height:34px;position:relative;cursor:pointer;font-variant-numeric:tabular-nums}
-.g td.c.full{background:var(--occ);color:#8a91a0}
+.g td.c.full{background:var(--occ)!important;color:#8a91a0}
+.g td.c.blk{background:repeating-linear-gradient(135deg,#eef0f4 0 5px,#d9dde5 5px 7px)!important;color:#8a91a0}
+.g td.c .sg{display:block;font-size:.68rem;line-height:1.1;white-space:nowrap}
+.g td.c .sg s{color:var(--mute);font-weight:600}.g td.c .sg b{color:var(--navy)}
 .g td.c.sel{box-shadow:inset 0 0 0 2px var(--orange)}
 .g td.c .p{font-weight:700;display:block}
 .g td.c .b{font-size:.66rem;display:inline-block;border-radius:4px;padding:0 3px;margin:0 1px;font-weight:700}
@@ -125,6 +128,14 @@ function calcular(base, pct, one) {
   for (let i = 1; i < out.length; i++) if (out[i][1] > out[i - 1][1]) out[i][1] = out[i - 1][1];
   return out;
 }
+/* cor pelo desvio do preço atual sobre a base: verde abaixo, neutro na base, laranja acima (limites -25% e +50%) */
+function corDesvio(pct) {
+  if (pct == null || !isFinite(pct) || Math.abs(pct) < 0.5) return "";
+  const t = pct < 0 ? Math.min(1, -pct / 25) : Math.min(1, pct / 50);
+  const a = (0.1 + 0.45 * t).toFixed(2);
+  return pct < 0 ? `rgba(29,122,70,${a})` : `rgba(242,107,46,${a})`;
+}
+const desvioPct = (atual, base) => { const a = minTier(atual), b = minTier(base); return a && b && b[1] ? 100 * (a[1] / b[1] - 1) : null; };
 const minTier = (p) => (p && p.length ? p.filter((t) => t[0] > 1)[0] || p[0] : null);
 const tierTxt = (p) => (p || []).map((t) => `${t[0]}+ noites: ${brl(t[1])}`).join("<br>") || "sem preço";
 
@@ -286,8 +297,17 @@ function desenharGrade() {
       const c = cells[d]; const units = c?.[0] ?? 0, avail = c?.[1], prices = c?.[2], pct = Number(c?.[4] || 0), one = c?.[5];
       const mt = minTier(prices); const full = avail === 0;
       const sel = on && S.selD.has(d);
+      const base = c?.[3]?.length ? c[3] : prices;
+      const dv = full ? null : desvioPct(prices, base);
+      const sg = S.sug?.[d]; let sgTxt = "";
+      if (!full && sg && sg.pct != null && base?.length) {
+        const prop = minTier(calcular(base, sg.pct, one ?? null));
+        if (prop && mt && prop[1] !== mt[1]) sgTxt = `<span class="sg"><s>${brl(mt[1])}</s> <b>${brl(prop[1])}</b></span>`;
+      }
+      const bloq = full && Number(c?.[6] || 0) > 0; // c[6] = unidades bloqueadas (quando o servidor enviar)
       const badges = (pct ? `<span class="b ${pct > 0 ? "up" : "dn"}">${pct > 0 ? "+" : ""}${pct}%</span>` : "") + (one != null ? `<span class="b n1">1N</span>` : "") + (units > 1 ? `<span class="b av">${avail ?? "?"}/${units}</span>` : "");
-      h += `<td class="c ${full ? "full" : ""} ${sel ? "sel" : ""}" data-c="${l.id}|${d}"><span class="p">${mt ? brl(mt[1]) : "—"}</span>${badges}</td>`;
+      const bg = corDesvio(dv);
+      h += `<td class="c ${full ? (bloq ? "blk" : "full") : ""} ${sel ? "sel" : ""}" data-c="${l.id}|${d}"${bg ? ` style="background:${bg}"` : ""}>${sgTxt || `<span class="p">${mt ? brl(mt[1]) : "—"}</span>`}${badges}</td>`;
     }
     h += `</tr>`;
   }
@@ -315,7 +335,7 @@ function ligarGrade() {
     td.onmouseenter = (e) => {
       const [id, d] = td.dataset.c.split("|"); const c = S.grid.cells[id]?.[d];
       if (!c) return;
-      tip.innerHTML = `<b>${fmtD(d)}</b> · ${c[0] > 1 ? `${c[1]} de ${c[0]} unidades livres` : c[1] > 0 ? "livre" : "ocupado / fechado"}<br><b>Atual</b><br>${tierTxt(c[2])}<br><b>Base</b><br>${tierTxt(c[3])}${c[4] ? `<br>Ajuste: ${c[4] > 0 ? "+" : ""}${c[4]}%` : ""}${c[5] != null ? `<br>1 noite liberada: +${c[5]}%` : ""}`;
+      tip.innerHTML = `<b>${fmtD(d)}</b> · ${c[0] > 1 ? `${c[1]} de ${c[0]} unidades livres` : c[1] > 0 ? "livre" : "ocupado / fechado"}<br><b>Atual</b><br>${tierTxt(c[2])}<br><b>Base</b><br>${tierTxt(c[3])}${c[4] ? `<br>Ajuste: ${c[4] > 0 ? "+" : ""}${c[4]}%` : ""}${c[5] != null ? `<br>1 noite liberada: +${c[5]}%` : ""}${(() => { const dv = desvioPct(c[2], c[3]?.length ? c[3] : c[2]); return dv != null && Math.abs(dv) >= 0.5 ? `<br>Atual vs. base: ${dv > 0 ? "+" : ""}${dv.toFixed(0)}%` : ""; })()}${S.sug?.[d]?.pct != null ? `<br>Sugestão da automação: ${S.sug[d].pct > 0 ? "+" : ""}${S.sug[d].pct}% sobre a base` : ""}`;
       tip.hidden = false; posTip(e);
     };
     td.onmousemove = posTip; td.onmouseleave = () => (tip.hidden = true);
