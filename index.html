@@ -54,9 +54,9 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .g thead th{position:sticky;top:0;background:#fff;z-index:3}
 .g tr.occ th,.g tr.occ td{position:sticky;top:38px;z-index:3;background:#fff}
 .g tr.sug th,.g tr.sug td{position:sticky;top:62px;z-index:3;background:#fff}
-.g .nm{position:sticky;left:0;background:#fff;z-index:2;min-width:300px;max-width:300px;text-align:left;padding:4px 8px;overflow:hidden;text-overflow:ellipsis}
+.g .nm{position:sticky;left:0;background:#fff;z-index:2;min-width:210px;max-width:210px;text-align:left;padding:4px 8px;overflow:hidden;text-overflow:ellipsis}
 .g thead .nm,.g tr.occ .nm,.g tr.sug .nm{z-index:4}
-.g .dh{min-width:64px;padding:3px 2px;text-align:center;cursor:pointer;font-weight:600;line-height:1.15}
+.g .dh{min-width:54px;padding:3px 2px;text-align:center;cursor:pointer;font-weight:600;line-height:1.15}
 .g .dh small{display:block;color:var(--mute);font-weight:600;font-size:.7rem}
 .g .dh.we{background:#f3f4f8}
 .g .dh.sel{background:var(--orange);color:#fff}.g .dh.sel small{color:#fff}
@@ -121,6 +121,7 @@ let criandoSenha = /type=(recovery|invite|signup)/.test(location.hash);
 const sb = supabase.createClient(SUPA, ANON, { auth: { persistSession: true, detectSessionInUrl: true, storageKey: "calendario-precos-auth" } });
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const num = (v) => Math.round(v).toLocaleString("pt-BR");
 const brl = (v) => v == null ? "—" : "R$ " + Math.round(v).toLocaleString("pt-BR");
 const DOW = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const hoje = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
@@ -286,6 +287,7 @@ async function carregarGrade() {
   $("#gridarea").innerHTML = `<p class="wrap mute">Carregando…</p>`;
   try {
     const [g, s] = await Promise.all([api("grid", { region: S.region, from: S.from, to: S.to }), api("suggest", { region: S.region, from: S.from, to: S.to })]);
+    S.prefixo = detectarPrefixo((g.listings || []).map((l) => l.nome));
     S.grid = g; S.gridVer = (S.gridVer || 0) + 1; S.prev = null; S.sug = Object.fromEntries((s.dias || []).map((x) => [x.date, x]));
     S.selL = new Set((g.listings || []).filter((l) => !l.is_margem).map((l) => l.id));
     selecionarDatasPelosDias();
@@ -293,7 +295,21 @@ async function carregarGrade() {
     desenharGrade();
   } catch (err) { $("#gridarea").innerHTML = `<p class="wrap msg">${esc(err.message)}</p>`; }
 }
-function nomeCurto(n) { return n || ""; }
+/* prefixo repetido da região (ex.: "BA-SSA-AR.ArtStudio"): o mais longo, cortado em separador, que aparece em pelo menos metade dos nomes */
+const SEP = /[\s.\-_·|\/:,]/;
+function detectarPrefixo(nomesL) {
+  const ns = nomesL.filter(Boolean); if (ns.length < 2) return "";
+  const cont = new Map();
+  for (const n of ns) { const vistos = new Set(); for (let i = 1; i < n.length; i++) if (SEP.test(n[i]) && !SEP.test(n[i - 1])) { const p = n.slice(0, i); if (!vistos.has(p)) { vistos.add(p); cont.set(p, (cont.get(p) || 0) + 1); } } }
+  let melhor = ""; const minimo = Math.max(2, Math.ceil(ns.length / 2));
+  for (const [p, c] of cont) if (c >= minimo && p.length > melhor.length && p.length >= 4) melhor = p;
+  return melhor;
+}
+function nomeCurto(n) {
+  n = n || ""; const p = S.prefixo;
+  if (p && n.startsWith(p)) { const r = n.slice(p.length).replace(/^[\s.\-_·|\/:,]+/, ""); if (r) return r; }
+  return n;
+}
 function seloIdade(iso) {
   if (!iso) return `<span class="selo vermelho">Sem dados da Stays — clique em Atualizar da Stays</span>`;
   const min = Math.max(0, (Date.now() - new Date(iso).getTime()) / 60000);
@@ -309,7 +325,8 @@ function legenda() {
    <span class="it"><span class="sw" style="background:repeating-linear-gradient(135deg,#eef0f4 0 4px,#d9dde5 4px 6px)"></span>Bloqueado</span>
    <span class="it"><b style="color:var(--ink)">2/8</b> unidades livres ÷ total do grupo (na ocupação: ocupadas ÷ em operação)</span>
    <span class="it"><span class="sw" style="background:var(--orange)"></span>Data selecionada (cabeçalho laranja)</span>
-   <span class="it"><span class="sg"><s>R$ 219</s> <b style="color:var(--ink)">R$ 197</b></span> preço atual → sugestão da automação</span>
+   <span class="it"><span class="sg"><s>219</s> <b style="color:var(--ink)">197</b></span> preço atual (riscado) → sugestão da automação</span>
+   ${S.prefixo ? `<span class="it">Nomes sem o prefixo comum da região: <b style="color:var(--ink)">${esc(S.prefixo)}</b></span>` : ""}
    <span class="it"><span class="b up">+10%</span><span class="b n1">1N</span> ajuste gravado · 1 noite liberada</span></div></details>`;
 }
 function corOcc(p) {
@@ -334,7 +351,7 @@ function desenharGrade() {
     const cells = G.cells[l.id] || {};
     const on = S.selL.has(l.id);
     const tags = [l.is_margem ? "margem" : "", l.is_duplicada ? "duplicado" : "", l.filhos ? `grupo ${l.filhos + 1} un.` : ""].filter(Boolean).join(" · ");
-    h += `<tr class="row ${on ? "" : "off"}"><th class="nm" title="${esc(l.nome)}"><input type="checkbox" data-l="${l.id}" ${on ? "checked" : ""}>${esc(l.code || "")} · ${esc(l.nome)}${tags ? `<span class="tag">${tags}</span>` : ""}</th>`;
+    h += `<tr class="row ${on ? "" : "off"}"><th class="nm" title="${esc((l.code ? l.code + " · " : "") + l.nome + (tags ? " (" + tags + ")" : ""))}"><input type="checkbox" data-l="${l.id}" ${on ? "checked" : ""}><b>${esc(l.code || "")}</b>${l.code ? " · " : ""}${esc(nomeCurto(l.nome))}${tags ? `<span class="tag">${tags}</span>` : ""}</th>`;
     for (const d of D) {
       const c = cells[d]; const units = c?.[0] ?? 0, avail = c?.[1], prices = c?.[2], pct = Number(c?.[4] || 0), one = c?.[5];
       const mt = minTier(prices); const full = avail === 0;
@@ -344,7 +361,7 @@ function desenharGrade() {
       const sg = S.sug?.[d]; let sgTxt = "";
       if (!full && sg && sg.pct != null && base?.length) {
         const prop = minTier(calcular(base, sg.pct, one ?? null));
-        if (prop && mt && prop[1] !== mt[1]) sgTxt = `<span class="sg"><s>${brl(mt[1])}</s> <b>${brl(prop[1])}</b></span>`;
+        if (prop && mt && prop[1] !== mt[1]) sgTxt = `<span class="sg"><s>${num(mt[1])}</s> <b>${num(prop[1])}</b></span>`;
       }
       const bloq = full && Number(c?.[6] || 0) > 0; // c[6] = unidades bloqueadas (quando o servidor enviar)
       const badges = (pct ? `<span class="b ${pct > 0 ? "up" : "dn"}">${pct > 0 ? "+" : ""}${pct}%</span>` : "") + (one != null ? `<span class="b n1">1N</span>` : "") + (units > 1 ? `<span class="b av">${avail ?? "?"}/${units}</span>` : "");
