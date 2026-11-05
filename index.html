@@ -77,6 +77,13 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .kpis>div{background:var(--panel);border-radius:8px;padding:8px 12px;display:grid;min-width:110px}
 .kpis b{font-size:1.15rem;font-variant-numeric:tabular-nums}.kpis span{font-size:.78rem;color:var(--mute);font-weight:600}.kpis small{font-size:.74rem;color:var(--mute)}
 .rtab{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.mapa{overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px;margin-top:6px}
+.mapa table{border-collapse:collapse;font-size:.66rem}
+.mapa td{width:12px;min-width:12px;height:12px;border:1px solid #fff;padding:0}
+.mapa th.ax{font-weight:600;color:var(--mute);padding:0 4px;text-align:right;white-space:nowrap}
+.mapa tr:first-child th.ax{text-align:left;padding:0}
+.vazio{background:repeating-linear-gradient(135deg,#fff 0 3px,#f3b9b3 3px 5px)!important}
+.aviso ul{margin:4px 0 0;padding-left:20px}
 .aviso{background:var(--warn-soft);color:#6b4b00;border-radius:8px;padding:8px 12px;font-size:.85rem;margin:6px 0}
 .g td.c .p{font-weight:700;display:block}
 .sg s{color:var(--mute);font-weight:600}
@@ -575,8 +582,11 @@ function desenharRegras(msg) {
    <td><input type="checkbox" data-i="${i}" data-k="ativo" ${r.ativo !== false ? "checked" : ""} style="width:auto"></td>
    <td><button data-up="${i}" title="Subir">↑</button> <button data-del="${i}" title="Apagar linha">Apagar</button></td></tr>`).join("")}</table>
    <p><button id="r-add">+ Adicionar linha</button> <button class="prim" id="r-save">Salvar regras</button> <span id="r-msg">${msg || ""}</span></p>
-   <p class="mute small">Dica: as faixas são inclusivas (ex.: 0–40% e 40–60% — o dia com exatamente 40% cai na primeira linha).</p>`;
-  document.querySelectorAll("#rg input[data-k]").forEach((inp) => (inp.onchange = () => { const r = REGRAS[+inp.dataset.i]; r[inp.dataset.k] = inp.type === "checkbox" ? inp.checked : inp.value; }));
+   <p class="mute small">Dica: as faixas são inclusivas (ex.: 0–40% e 40–60% — o dia com exatamente 40% cai na primeira linha). A ocupação tem uma casa decimal (ex.: 40,5%), então 0–40% seguido de 41–60% deixa um buraco entre 40,1% e 40,9%.</p>
+   <h2 style="margin-top:22px">Mapa das regras</h2><p class="mute small">Cada quadradinho mostra o ajuste da primeira regra ativa que encaixa (a mesma conta do servidor). Atualiza enquanto você edita, antes de salvar.</p>
+   <div id="r-mapa"></div>`;
+  document.querySelectorAll("#rg input[data-k]").forEach((inp) => (inp.oninput = inp.onchange = () => { const r = REGRAS[+inp.dataset.i]; r[inp.dataset.k] = inp.type === "checkbox" ? inp.checked : inp.value; desenharMapa(); }));
+  desenharMapa();
   document.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => { REGRAS.splice(+b.dataset.del, 1); desenharRegras(); }));
   document.querySelectorAll("[data-up]").forEach((b) => (b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [REGRAS[i - 1], REGRAS[i]] = [REGRAS[i], REGRAS[i - 1]]; desenharRegras(); } }));
   $("#r-add").onclick = () => { REGRAS.push({ occ_min: 0, occ_max: 100, lead_min: 0, lead_max: 7, pct: 0, ativo: true }); desenharRegras(); };
@@ -584,6 +594,66 @@ function desenharRegras(msg) {
     try { await api("rules_save", { rules: REGRAS }); REGRAS = (await api("rules_get")).rules; S.grid = null; desenharRegras(`<span class="okmsg">Regras salvas.</span>`); }
     catch (e) { $("#r-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; }
   };
+}
+
+/* mesma regra do servidor (sugerir): primeira regra ativa, na ordem, com faixas inclusivas */
+function regraQueCasa(rs, occ, lead) {
+  return rs.find((x) => occ >= Number(x.occ_min) && occ <= Number(x.occ_max) && lead >= x.lead_min && lead <= x.lead_max) || null;
+}
+function regrasAtivas() {
+  return REGRAS.map((r, i) => ({ ...r, n: i + 1, occ_min: Number(r.occ_min), occ_max: Number(r.occ_max), lead_min: Math.round(Number(r.lead_min)), lead_max: Math.round(Number(r.lead_max)), pct: Number(r.pct) }))
+    .filter((r) => r.ativo !== false && [r.occ_min, r.occ_max, r.lead_min, r.lead_max, r.pct].every(isFinite));
+}
+const pctBR = (v) => v.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+function lacunas(rs, leadMax) {
+  // por dia de antecedência, faixas de ocupação (passo 0,1%) sem regra; depois junta dias com as mesmas faixas
+  const porLead = [];
+  for (let lead = 0; lead <= leadMax; lead++) {
+    const fx = []; let ini = null;
+    for (let k = 0; k <= 1000; k++) { const o = k / 10, livre = !regraQueCasa(rs, o, lead);
+      if (livre && ini === null) ini = o; if (!livre && ini !== null) { fx.push([ini, (k - 1) / 10]); ini = null; } }
+    if (ini !== null) fx.push([ini, 100]);
+    porLead.push(fx.map((f) => f.join("-")).join("|"));
+  }
+  const out = []; let a = 0;
+  for (let lead = 1; lead <= leadMax + 1; lead++) if (lead > leadMax || porLead[lead] !== porLead[a]) {
+    if (porLead[a]) for (const f of porLead[a].split("|")) { const [x, y] = f.split("-").map(Number); { const b = lead - 1, fim = b === leadMax ? `${leadMax} dias ou mais` : null; const txt = a === b ? (fim || `${a} dia${a === 1 ? "" : "s"}`) : `${a}–${b === leadMax ? leadMax + "+" : b} dias`; out.push(`${pctBR(x)}–${pctBR(y)}% de ocupação, ${txt}: sem regra`); } }
+    a = lead;
+  }
+  return out;
+}
+function sobreposicoes(rs) {
+  const out = [];
+  for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+    const A = rs[i], B = rs[j];
+    const o0 = Math.max(A.occ_min, B.occ_min), o1 = Math.min(A.occ_max, B.occ_max), l0 = Math.max(A.lead_min, B.lead_min), l1 = Math.min(A.lead_max, B.lead_max);
+    if (o0 <= o1 && l0 <= l1) out.push(`Regras #${A.n} e #${B.n} se sobrepõem em ${pctBR(o0)}–${pctBR(o1)}% / ${l0}–${l1} dias: vale a #${A.n} (${sinal(A.pct)}%), que vem primeiro.`);
+  }
+  // regra que nunca é usada (coberta por anteriores)
+  for (let j = 0; j < rs.length; j++) {
+    let usada = false; const B = rs[j];
+    for (let lead = B.lead_min; lead <= Math.min(B.lead_max, B.lead_min + 120) && !usada; lead++) for (let k = Math.ceil(B.occ_min * 2); k <= Math.floor(B.occ_max * 2) && !usada; k++) if (regraQueCasa(rs, k / 2, lead) === B) usada = true;
+    if (!usada) out.push(`A regra #${B.n} nunca é usada: as regras de cima já cobrem toda a faixa dela.`);
+  }
+  return out;
+}
+function desenharMapa() {
+  const el = $("#r-mapa"); if (!el) return;
+  const rs = regrasAtivas(), LMAX = 60;
+  let h = `<div class="mapa"><table><tr><th class="ax">ocup. ↓ / dias →</th>${Array.from({ length: LMAX + 1 }, (_, l) => `<th class="ax">${l % 5 === 0 ? l : ""}</th>`).join("")}</tr>`;
+  for (let o = 100; o >= 0; o -= 5) {
+    h += `<tr><th class="ax">${o}%</th>`;
+    for (let l = 0; l <= LMAX; l++) {
+      const r = regraQueCasa(rs, o, l);
+      h += r ? `<td style="background:${corDesvio(r.pct) || "#fff"}" title="${o}% · ${l} dias → regra #${r.n}: ${sinal(r.pct)}%"></td>` : `<td class="vazio" title="${o}% · ${l} dias → sem regra"></td>`;
+    }
+    h += `</tr>`;
+  }
+  h += `</table></div><div class="legenda" style="margin:6px 0"><div class="itens"><span class="it"><span class="escala"></span>−25% … 0 … +50% ou mais</span><span class="it"><span class="sw vazio"></span>Sem cobertura (nenhuma regra)</span></div></div>`;
+  const gaps = lacunas(rs, LMAX + 1), sob = sobreposicoes(rs);
+  const avisos = (gaps.length ? `<div class="aviso"><b>Lacunas</b> (dias sem sugestão):<ul>${gaps.slice(0, 12).map((g) => `<li>${g}</li>`).join("")}</ul>${gaps.length > 12 ? `… e mais ${gaps.length - 12}.` : ""}</div>` : `<div class="aviso" style="background:var(--ok-soft);color:var(--ok)">Sem lacunas: toda ocupação de 0 a 100% tem regra até ${LMAX}+ dias.</div>`)
+    + (sob.length ? `<div class="aviso"><b>Sobreposições</b>:<ul>${sob.map((x) => `<li>${x}</li>`).join("")}</ul></div>` : "");
+  el.innerHTML = avisos + h;
 }
 
 /* ---------- histórico ---------- */
