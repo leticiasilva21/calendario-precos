@@ -54,6 +54,16 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .g thead th{position:sticky;top:0;background:#fff;z-index:3}
 .g tr.occ th,.g tr.occ td{position:sticky;top:38px;z-index:3;background:#fff}
 .g tr.sug th,.g tr.sug td{position:sticky;top:62px;z-index:3;background:#fff}
+.g tr.fixa th,.g tr.fixa td{position:sticky;z-index:3;background:#fff}
+.g tr.fixa .nm{z-index:4}
+.g tr.rit2 td{border-bottom:2px solid var(--line)}
+.g .rit-x{font-size:.66rem;color:var(--mute);font-weight:700;line-height:1}
+.rea-m{font-size:.6rem;margin-left:2px;color:var(--navy)}
+.rea-on{display:flex;gap:8px;align-items:center;font-weight:700;margin:6px 0 10px}
+.rea-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px}
+.rea-grid h3{font-size:1rem;margin:0 0 4px}
+.rea-t{width:auto;margin:6px 0}.rea-t input{width:64px}
+.rea-t button.x{border:0;color:var(--mute);background:none;font-size:1rem;padding:0 4px}
 .g .nm{position:sticky;left:0;background:#fff;z-index:2;min-width:210px;max-width:210px;text-align:left;padding:4px 8px;overflow:hidden;text-overflow:ellipsis}
 .g thead .nm,.g tr.occ .nm,.g tr.sug .nm{z-index:4}
 .g .dh{min-width:54px;padding:3px 2px;text-align:center;cursor:pointer;font-weight:600;line-height:1.15}
@@ -367,6 +377,7 @@ function legenda() {
    <span class="it"><b style="color:var(--ink)">2 livres</b> unidades livres no dia, em anúncios que são grupo de unidades · na linha de ocupação, <b style="color:var(--ink)">51/92</b> = ocupadas ÷ em operação</span>
    <span class="it"><span class="sw" style="background:var(--orange)"></span>Data selecionada (cabeçalho laranja)</span>
    <span class="it"><span class="sg"><s>219</s> <b style="color:var(--ink)">197</b></span> preço atual (riscado) → sugestão da automação</span>
+   <span class="it"><span class="b up">+50%</span><span class="rea-m">▼</span> sugestão freada (▼) ou acelerada (▲) pelas vendas · passe o mouse para ver o motivo</span>
    ${S.prefixo ? `<span class="it">Nomes sem o prefixo comum da região: <b style="color:var(--ink)">${esc(S.prefixo)}</b></span>` : ""}
    <span class="it"><span class="b up">+10%</span><span class="b n1">1N</span> ajuste gravado · 1 noite liberada</span></div></details>`;
 }
@@ -386,7 +397,12 @@ function desenharGrade() {
   h += `</tr></thead><tbody><tr class="occ"><th class="nm">Ocupação da região <span class="tag">ocupadas ÷ em operação</span></th>`;
   for (const d of D) { const p = occ(d), o = G.occ[d]; h += `<td class="o" style="background:${corOcc(p)}" data-tipocc="${d}">${p == null ? "—" : p.toFixed(0) + "%"}<div class="small mute" style="font-weight:600">${o ? o[0] - o[1] + "/" + o[0] : ""}</div></td>`; }
   h += `</tr><tr class="sug"><th class="nm">Sugestão da automação</th>`;
-  for (const d of D) { const s = S.sug?.[d]; h += `<td class="o small">${s && s.pct != null ? `<span class="b ${s.pct >= 0 ? "up" : "dn"}">${s.pct > 0 ? "+" : ""}${s.pct}%</span>` : "<span class='mute'>·</span>"}</td>`; }
+  for (const d of D) { const s = S.sug?.[d]; const mud = s && s.pct != null && s.pct_tabela != null && s.pct !== s.pct_tabela;
+    h += `<td class="o small" title="${esc(tipSug(s))}">${s && s.pct != null ? `<span class="b ${s.pct >= 0 ? "up" : "dn"}">${s.pct > 0 ? "+" : ""}${s.pct}%</span>${mud ? `<span class="rea-m">${s.pct < s.pct_tabela ? "▼" : "▲"}</span>` : ""}` : "<span class='mute'>·</span>"}</td>`; }
+  h += `</tr><tr class="rit1 fixa"><th class="nm">Dias sem reserva <span class="tag">desde a última reserva ou ajuste</span></th>`;
+  for (const d of D) { const s = S.sug?.[d]; h += `<td class="o small" style="background:${corSemVenda(s?.sem_venda)}" title="${esc(tipRecencia(s))}">${s?.sem_venda ?? "—"}</td>`; }
+  h += `</tr><tr class="rit2 fixa"><th class="nm">Vendas nos últimos 7 dias <span class="tag">vs. normal</span></th>`;
+  for (const d of D) { const s = S.sug?.[d]; h += `<td class="o small" style="background:${corRitmo(s?.ritmo)}" title="${esc(tipRitmo(s))}">${s ? `${s.res_7d}${s.ritmo != null ? `<div class="rit-x">${fmtX(s.ritmo)}×</div>` : ""}` : "—"}</td>`; }
   h += `</tr>`;
   for (const l of L) {
     const cells = G.cells[l.id] || {};
@@ -479,7 +495,13 @@ function pintarSelecao() {
   atualizarPainel();
 }
 let ARR = null; // arrasto em andamento
+function fixarTopo() {
+  const tb = $("#tg"); if (!tb) return;
+  let top = tb.tHead.offsetHeight;
+  for (const tr of tb.querySelectorAll("tr.occ, tr.sug, tr.fixa")) { for (const c of tr.children) c.style.top = top + "px"; top += tr.offsetHeight; }
+}
 function ligarGrade() {
+  fixarTopo();
   $("#legenda").ontoggle = (e) => { try { localStorage.setItem("cp-legenda", e.target.open ? "1" : "0"); } catch {} };
   const L = listaVisivel(), D = datas(), idxL = new Map(L.map((l, i) => [l.id, i])), idxD = new Map(D.map((d, i) => [d, i]));
   $("#all").onchange = (e) => { for (const l of L) e.target.checked ? S.selL.add(l.id) : S.selL.delete(l.id); pintarSelecao(); };
@@ -686,8 +708,12 @@ function estadoSalvar() {
 async function telaAuto() {
   $("#app").innerHTML = cabecalho() + `<div class="wrap card"><h2>Automação: ocupação × antecedência</h2>
    <p class="mute">Cada quadradinho é o ajuste sobre a diária base quando a ocupação da região e a antecedência do check-in caem naquela faixa (de ${S.limites.PCT_MIN}% a +${S.limites.PCT_MAX}%). Quadradinho vazio = sem sugestão. A sugestão aparece na grade do calendário; nada é gravado na Stays sem você aplicar.</p>
-   <div id="rg">Carregando…</div></div>`;
+   <div id="rg">Carregando…</div>
+   <h2 style="margin-top:28px">Reação às vendas</h2>
+   <p class="mute">Ajusta a sugestão da tabela acima conforme a <b>recência</b> (há quantos dias não entra reserva para aquela noite) e o <b>ritmo</b> de vendas (reservas da última semana vs. o normal). A tabela acima funciona como referência; o freio recua quando não vende e a aceleração avança quando vende rápido. Os números aparecem na grade do calendário, nas linhas abaixo da sugestão.</p>
+   <div id="rea">Carregando…</div></div>`;
   ligarCab();
+  carregarReacao();
   try {
     const rs = (await api("rules_get")).rules; AUTO = tabelaDeRegras(rs); AUTO_ORIG = JSON.stringify(AUTO);
     const r = lerRascunho();
@@ -744,6 +770,78 @@ function desenharTabela(msg) {
   };
 }
 
+/* ---------- reação às vendas (freio por dias sem reserva, aceleração por ritmo) ---------- */
+let REA = null, REA_ORIG = "";
+async function carregarReacao() {
+  const el = $("#rea"); if (!el) return;
+  try { REA = (await api("reacao_get")).reacao; REA_ORIG = JSON.stringify(soReacao(REA)); desenharReacao(); }
+  catch (e) { el.innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
+}
+const soReacao = (r) => ({ ativo: r.ativo !== false, freio: r.freio, acel: r.acel, normal_min: r.normal_min });
+function desenharReacao(msg) {
+  const el = $("#rea"); if (!el) return;
+  const R = REA;
+  el.innerHTML = `<label class="rea-on"><input type="checkbox" id="rea-ativo" ${R.ativo !== false ? "checked" : ""}> Usar a reação às vendas na sugestão</label>
+   <div class="rea-grid">
+    <div><h3>Freio: dias sem reserva</h3>
+     <p class="small mute">Conta os dias desde a última reserva para aquela noite <b>ou</b> desde o último ajuste de preço, o que for mais recente. Vale só para <b>acréscimos</b> e só se ainda houver unidade livre.</p>
+     <table class="t rea-t"><tr><th>De (dias)</th><th>Até (dias)</th><th>Usar do acréscimo</th><th></th></tr>
+      ${R.freio.map((f, i) => `<tr><td><input type="number" min="0" step="1" data-f="${i}" data-k="de" value="${f.de}"></td>
+        <td><input type="number" min="0" step="1" data-f="${i}" data-k="ate" value="${f.ate ?? ""}" placeholder="ou mais"></td>
+        <td><input type="number" min="0" max="100" step="5" data-f="${i}" data-k="usar" value="${f.usar}"> %</td>
+        <td><button class="x" data-fdel="${i}" title="Apagar linha">×</button></td></tr>`).join("")}</table>
+     <button id="rea-fadd">+ linha</button>
+     <p class="small mute">Ex.: tabela diz +100%, 6 dias sem reserva e linha "6–10 → 50%" ⇒ sugestão +50%.</p></div>
+    <div><h3>Aceleração: ritmo de vendas</h3>
+     <p class="small mute">Compara as reservas feitas nos últimos 7 dias para aquela noite com o normal da região nessa mesma antecedência (média das últimas 8 semanas). Soma pontos à sugestão — vale para acréscimo e para desconto.</p>
+     <table class="t rea-t"><tr><th>Vendendo pelo menos</th><th>Somar</th><th></th></tr>
+      ${R.acel.map((a, i) => `<tr><td><input type="number" min="1" step="0.1" data-a="${i}" data-k="ritmo" value="${a.ritmo}"> × o normal</td>
+        <td>+<input type="number" min="0" step="5" data-a="${i}" data-k="extra" value="${a.extra}"> pontos</td>
+        <td><button class="x" data-adel="${i}" title="Apagar linha">×</button></td></tr>`).join("")}</table>
+     <button id="rea-aadd">+ linha</button>
+     <p class="small mute">Só compara quando o normal for pelo menos <input type="number" min="0" step="0.1" id="rea-nmin" value="${R.normal_min}" style="width:60px"> reserva por semana (regiões pequenas ficam de fora para não reagir a 1 reserva).</p></div>
+   </div>
+   <p><button class="prim" id="rea-save">Salvar reação</button> <button id="rea-undo" hidden>Descartar mudanças</button> <span id="rea-msg">${msg || ""}</span></p>`;
+  const num = (v) => (v === "" ? "" : Number(v));
+  el.querySelectorAll("[data-f]").forEach((inp) => (inp.oninput = () => { const f = REA.freio[+inp.dataset.f]; f[inp.dataset.k] = inp.dataset.k === "ate" && inp.value === "" ? null : num(inp.value); estadoReacao(); }));
+  el.querySelectorAll("[data-a]").forEach((inp) => (inp.oninput = () => { REA.acel[+inp.dataset.a][inp.dataset.k] = num(inp.value); estadoReacao(); }));
+  $("#rea-nmin").oninput = (e) => { REA.normal_min = num(e.target.value); estadoReacao(); };
+  $("#rea-ativo").onchange = (e) => { REA.ativo = e.target.checked; estadoReacao(); };
+  el.querySelectorAll("[data-fdel]").forEach((b) => (b.onclick = () => { REA.freio.splice(+b.dataset.fdel, 1); desenharReacao(); }));
+  el.querySelectorAll("[data-adel]").forEach((b) => (b.onclick = () => { REA.acel.splice(+b.dataset.adel, 1); desenharReacao(); }));
+  $("#rea-fadd").onclick = () => { const u = REA.freio[REA.freio.length - 1]; const de = u ? (u.ate ?? u.de) + 1 : 0; REA.freio.push({ de, ate: null, usar: 0 }); desenharReacao(); };
+  $("#rea-aadd").onclick = () => { REA.acel.push({ ritmo: 1.5, extra: 5 }); desenharReacao(); };
+  $("#rea-undo").onclick = () => { REA = { ...JSON.parse(REA_ORIG) }; desenharReacao(); };
+  $("#rea-save").onclick = async () => {
+    const b = $("#rea-save"); b.disabled = true;
+    try { REA = (await api("reacao_save", { reacao: soReacao(REA) })).reacao; REA_ORIG = JSON.stringify(soReacao(REA)); S.grid = null; desenharReacao(`<span class="okmsg">Reação salva. A sugestão do calendário já usa os novos valores.</span>`); }
+    catch (e) { $("#rea-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; b.disabled = false; }
+  };
+  if (!msg) estadoReacao();
+}
+function estadoReacao() {
+  const mudou = JSON.stringify(soReacao(REA)) !== REA_ORIG, b = $("#rea-save"), u = $("#rea-undo"), m = $("#rea-msg");
+  if (b) b.disabled = !mudou; if (u) u.hidden = !mudou;
+  if (m && !m.querySelector(".msg")) m.innerHTML = mudou ? `<span class="mute">Há mudanças não salvas.</span>` : "";
+}
+/* textos das linhas de recência/ritmo na grade */
+function corSemVenda(n) { if (n == null) return "#fff"; if (n <= 2) return "#fff"; if (n <= 5) return "#fdf3d9"; if (n <= 10) return "#fde4d3"; return "#fbd5d1"; }
+function corRitmo(r) { if (r == null) return "#fff"; if (r >= 2) return "#c9ebd6"; if (r >= 1.3) return "#e3f4ea"; if (r < 0.5) return "#fbd5d1"; if (r < 0.8) return "#fde4d3"; return "#fff"; }
+const fmtX = (v) => v.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+function tipSug(s) {
+  if (!s) return "";
+  const p = (v) => (v == null ? "sem regra" : `${v > 0 ? "+" : ""}${v}%`);
+  return `Tabela (ocupação ${s.occ ?? "—"}% · ${s.lead} dias): ${p(s.pct_tabela)}` + (s.motivo?.length ? ` | ${s.motivo.join(" | ")}` : "") + ` | Sugestão final: ${p(s.pct)}`;
+}
+function tipRecencia(s) {
+  if (!s) return "";
+  return `Última reserva para esta noite: ${s.ultima_res ? fmtD(s.ultima_res) : "nenhuma"}` + (s.ultimo_ajuste ? ` | Último ajuste de preço: ${fmtHora(s.ultimo_ajuste)}` : "") + ` | Conta a partir do mais recente dos dois.`;
+}
+function tipRitmo(s) {
+  if (!s) return "";
+  return `${s.res_7d} reserva${s.res_7d === 1 ? "" : "s"} feita${s.res_7d === 1 ? "" : "s"} nos últimos 7 dias para esta noite | Normal nessa antecedência: ${fmtX(s.normal_7d)} por semana` + (s.ritmo == null ? " | Pouco histórico para comparar" : ` | Ritmo: ${fmtX(s.ritmo)}× o normal`);
+}
+
 /* ---------- histórico ---------- */
 async function telaLog() {
   $("#app").innerHTML = cabecalho() + `<div class="faixa"><label>Região <select id="lg-reg"><option value="">Todas</option>${S.regions.map((r) => `<option>${esc(r.name)}</option>`).join("")}</select></label>
@@ -774,7 +872,7 @@ function previaDesfazer(batch) {
       catch (e) { $("#m-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; ok.disabled = false; ok.textContent = "Tentar de novo"; }
     });
 }
-const NOMES_OP = { pct: "Ajuste %", one_night_on: "Liberou 1 noite", one_night_off: "Tirou 1 noite", reset: "Voltou à base", rebase: "Redefiniu base", desfazer: "Desfez", regras: "Alterou regras", base_stays: "Base atualizada (mudança feita direto na Stays)" };
+const NOMES_OP = { pct: "Ajuste %", one_night_on: "Liberou 1 noite", one_night_off: "Tirou 1 noite", reset: "Voltou à base", rebase: "Redefiniu base", desfazer: "Desfez", regras: "Alterou regras", base_stays: "Base atualizada (mudança feita direto na Stays)", reacao: "Alterou a reação às vendas" };
 async function carregarLog() {
   try {
     const { rows } = await api("log", { region: $("#lg-reg").value || undefined, user: $("#lg-user").value.trim() || undefined, limit: 1000 });
@@ -788,7 +886,7 @@ async function carregarLog() {
        <td>${esc(b.region_name || "")}</td><td>${b.imoveis.size}<div class="small mute">${esc([...b.imoveis].slice(0, 2).join(", "))}${b.imoveis.size > 2 ? "…" : ""}</div></td>
        <td>${ds.length ? fmtD(ds[0]) + (ds.length > 1 ? " a " + fmtD(ds[ds.length - 1]) : "") : ""}</td>
        <td>${b.n}${b.erros ? ` <span class="msg">(${b.erros} com erro)</span>` : ""}<div class="small mute">${b.date ? "ex.: " + fmt(b.before) + " → " + fmt(b.after) : ""}</div></td>
-       <td>${b.batch_id && b.action !== "regras" && b.action !== "desfazer" && b.action !== "base_stays" && b.n - b.erros > 0 ? `<button data-rev="${b.batch_id}">Desfazer</button>` : ""}</td></tr>`; }).join("") || ""}</table>`;
+       <td>${b.batch_id && b.action !== "regras" && b.action !== "desfazer" && b.action !== "base_stays" && b.action !== "reacao" && b.n - b.erros > 0 ? `<button data-rev="${b.batch_id}">Desfazer</button>` : ""}</td></tr>`; }).join("") || ""}</table>`;
     document.querySelectorAll("[data-rev]").forEach((b) => (b.onclick = () => previaDesfazer(b.dataset.rev)));
   } catch (e) { $("#lg").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
 }
