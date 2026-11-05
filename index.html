@@ -110,6 +110,24 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .nm input{vertical-align:-2px;margin-right:6px}
 .nm .tag{font-size:.68rem;color:var(--mute);margin-left:4px;font-weight:600}
 /* painel de ação */
+.cal-lay{display:flex;align-items:flex-start;gap:0}
+.cal-main{flex:1;min-width:0}
+.painel{width:300px;flex:none;position:sticky;top:8px;margin:12px 16px 12px 0;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:0 4px 14px rgba(22,41,79,.06);max-height:calc(100vh - 24px);overflow:auto}
+.pa-sel{padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel);border-radius:10px 10px 0 0}
+.pa-t{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--mute);font-weight:800}
+.pa-n{font-weight:800;font-size:1.05rem;margin:2px 0 6px}
+.pa-k{display:flex;justify-content:space-between;font-size:.84rem;color:var(--mute)}.pa-k b{color:var(--ink);font-variant-numeric:tabular-nums}
+.pa-b{display:flex;gap:6px;margin-top:8px}.pa-b button{padding:3px 10px;font-size:.78rem}
+.pa-acoes{padding:4px 0}
+.pa-l{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--line)}
+.pa-l>div{flex:1;min-width:0;line-height:1.2}.pa-l small{display:block;color:var(--mute);font-size:.72rem;margin-top:2px}
+.pa-in{display:flex;align-items:center;gap:2px;color:var(--mute)}.pa-in input{width:62px;text-align:right;padding:4px 6px;font-weight:700}
+.pa-sug{font-weight:800;font-size:.85rem;white-space:nowrap}
+.pa-l .ir{padding:4px 11px;font-size:1rem;line-height:1.1}
+.pa-p{padding:6px 14px;margin:0}
+.pa-mais{padding:0 0 6px}.pa-mais summary{cursor:pointer;padding:6px 14px;font-size:.8rem;font-weight:700;color:var(--navy)}
+#a-msg{padding:0 14px 12px}
+@media (max-width:900px){.cal-lay{flex-direction:column}.painel{width:auto;margin:0 16px 16px;position:static;max-height:none}}
 .acao{position:sticky;bottom:0;background:#fff;border-top:2px solid var(--orange);padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;z-index:6;box-shadow:0 -4px 14px rgba(22,41,79,.08)}
 .acao .sel{font-weight:800}
 .prev{margin:0 16px 12px;padding:10px 12px;background:var(--panel);border-radius:8px;font-size:.85rem}
@@ -362,7 +380,7 @@ function listaVisivel() {
 function desenharGrade() {
   const G = S.grid, D = datas(), L = listaVisivel();
   const occ = (d) => { const o = G.occ[d]; return o && o[0] ? Math.round(1000 * (1 - o[1] / o[0])) / 10 : null; };
-  let h = legenda() + `<div class="gridbox"><table class="g" id="tg"><thead><tr><th class="nm"><input type="checkbox" id="all" ${L.every((l) => S.selL.has(l.id)) ? "checked" : ""}> ${L.length} anúncios</th>`;
+  let h = `<div class="cal-lay"><div class="cal-main">` + legenda() + `<div class="gridbox"><table class="g" id="tg"><thead><tr><th class="nm"><input type="checkbox" id="all" ${L.every((l) => S.selL.has(l.id)) ? "checked" : ""}> ${L.length} anúncios</th>`;
   for (const d of D) { const w = dowOf(d); h += `<th class="dh ${w === 0 || w === 6 ? "we" : ""} ${S.selD.has(d) ? "sel" : ""}" data-d="${d}">${fmtD(d)}<small>${DOW[w]}</small></th>`; }
   h += `</tr></thead><tbody><tr class="occ"><th class="nm">Ocupação da região <span class="tag">ocupadas ÷ em operação</span></th>`;
   for (const d of D) { const p = occ(d), o = G.occ[d]; h += `<td class="o" style="background:${corOcc(p)}" data-tipocc="${d}">${p == null ? "—" : p.toFixed(0) + "%"}<div class="small mute" style="font-weight:600">${o ? o[0] - o[1] + "/" + o[0] : ""}</div></td>`; }
@@ -392,40 +410,72 @@ function desenharGrade() {
     }
     h += `</tr>`;
   }
-  h += `</tbody></table></div>` + painelAcao();
+  h += `</tbody></table></div></div>` + painelAcao() + `</div>`;
   $("#gridarea").innerHTML = h;
   ligarGrade();
 }
-function painelAcao() {
+/* painel lateral: resumo da seleção + uma linha por ação; o → abre o resumo antes → depois para confirmar */
+function painelAcao() { return `<aside class="painel" id="painel">${painelConteudo()}</aside>`; }
+function painelConteudo() {
   const n = S.selL.size, m = S.selD.size, L = S.limites;
-  const ops = [["pct", "Ajustar diária (% sobre a base)"], ["one_night_on", "Liberar 1 noite (+% sobre a diária mínima atual)"], ["one_night_off", "Tirar a liberação de 1 noite"], ["reset", "Voltar para a diária base"], ["rebase", "Redefinir base = preço atual da Stays"]];
-  const pedeVal = S.op === "pct" || S.op === "one_night_on";
-  const pronta = S.prev && S.prev.chave === chave();
-  return `<div class="acao"><span class="sel">${n} anúncio${n === 1 ? "" : "s"} × ${m} data${m === 1 ? "" : "s"}</span>
-   <select id="a-op">${ops.map(([k, t]) => `<option value="${k}" ${S.op === k ? "selected" : ""}>${t}</option>`).join("")}</select>
-   ${pedeVal ? `<label class="mute">% <input id="a-val" type="number" step="1" style="width:80px" value="${esc(S.val)}" placeholder="${S.op === "pct" ? `${L.PCT_MIN} a +${L.PCT_MAX}` : `0 a ${L.ONE_NIGHT_MAX}`}"></label>` : ""}
-   <button id="a-prev">Prévia</button><button class="prim" id="a-apl" ${pronta ? "" : "disabled"} title="${pronta ? "Abre o resumo para confirmar" : "Rode a Prévia para esta seleção antes de gravar"}">Gravar na Stays</button>
-   <button id="a-sug" title="Mostra a prévia da sugestão da automação nas datas e anúncios selecionados">Aplicar sugestão da automação</button>
-   <span id="a-msg" class="small">${pronta ? "" : `<span class="mute">Rode a Prévia para liberar a gravação.</span>`}</span></div>`;
+  let soma = 0, qt = 0;
+  for (const id of S.selL) for (const d of S.selD) { const c = S.grid.cells[id]?.[d]; const t = minTier(c?.[2]); if (t) { soma += t[1]; qt++; } }
+  const occs = [...S.selD].map((d) => { const o = S.grid.occ[d]; return o && o[0] ? 100 * (1 - o[1] / o[0]) : null; }).filter((v) => v != null);
+  const occM = occs.length ? occs.reduce((a, b) => a + b, 0) / occs.length : null;
+  const sugs = [...S.selD].map((d) => S.sug?.[d]?.pct).filter((v) => v != null);
+  const sMin = sugs.length ? Math.min(...sugs) : null, sMax = sugs.length ? Math.max(...sugs) : null;
+  const sugTxt = !sugs.length ? "sem regra nas datas" : sMin === sMax ? `${sinal(sMin)}%` : `${sinal(sMin)}% a ${sinal(sMax)}%`;
+  const vazio = !n || !m;
+  const linha = (op, nome, campo, dica) => `<div class="pa-l"><div><b>${nome}</b>${dica ? `<small>${dica}</small>` : ""}</div>${campo || ""}<button class="prim ir" data-op="${op}" ${vazio ? "disabled" : ""} title="Abre o resumo antes → depois para confirmar">→</button></div>`;
+  return `<div class="pa-sel"><div class="pa-t">Seleção</div>
+     <div class="pa-n">${n} anúncio${n === 1 ? "" : "s"} × ${m} data${m === 1 ? "" : "s"}</div>
+     <div class="pa-k"><span>diária média hoje</span><b>${qt ? brl(soma / qt) : "—"}</b></div>
+     <div class="pa-k"><span>ocupação média da região</span><b>${occM == null ? "—" : Math.round(occM) + "%"}</b></div>
+     <div class="pa-b"><button id="p-tudo">Selecionar tudo</button><button id="p-limpa" ${vazio ? "disabled" : ""}>Limpar</button></div></div>
+   <div class="pa-acoes">
+     ${linha("pct", "Ajustar diária", `<label class="pa-in"><input id="p-pct" type="number" step="1" value="${esc(S.vPct ?? "")}" placeholder="-10"><span>%</span></label>`, `sobre a base · ${L.PCT_MIN}% a +${L.PCT_MAX}%`)}
+     ${linha("one_night_on", "Liberar 1 noite", `<label class="pa-in"><input id="p-1n" type="number" step="1" min="0" value="${esc(S.v1n ?? "")}" placeholder="30"><span>%</span></label>`, "acima da diária mínima")}
+     ${linha("one_night_off", "Tirar 1 noite", "", "remove a faixa de 1 noite")}
+     ${linha("reset", "Voltar à base", "", "zera ajuste e 1 noite")}
+     ${linha("sugestao", "Sugestão da automação", `<span class="pa-sug">${sugTxt}</span>`, sugs.length ? `${sugs.length} de ${m} datas com regra` : "")}
+   </div>
+   <p class="small mute pa-p">→ abre o resumo antes → depois; nada é gravado sem confirmar.</p>
+   <details class="pa-mais"><summary>Mais opções</summary>${linha("rebase", "Redefinir base", "", "base = preço atual da Stays (já é automático na sincronização)")}</details>
+   <div id="a-msg" class="small"></div>`;
 }
-/* chave da seleção + ação: qualquer mudança invalida a prévia */
-function chave(tipo = "op") {
-  return JSON.stringify([tipo, tipo === "op" ? S.op : "", tipo === "op" ? S.val : "", S.gridVer, [...S.selL].sort(), [...S.selD].sort()]);
+function ligarPainel() {
+  const p = $("#painel"); if (!p) return;
+  const i1 = $("#p-pct"), i2 = $("#p-1n");
+  if (i1) i1.oninput = () => (S.vPct = i1.value);
+  if (i2) i2.oninput = () => (S.v1n = i2.value);
+  p.querySelectorAll("[data-op]").forEach((b) => (b.onclick = () => {
+    const op = b.dataset.op;
+    if (op === "sugestao") return previaSugestao();
+    S.op = op; S.val = op === "pct" ? S.vPct ?? "" : op === "one_night_on" ? S.v1n ?? "" : "";
+    previa();
+  }));
+  [i1, i2].forEach((inp) => inp && (inp.onkeydown = (e) => { if (e.key === "Enter") inp.closest(".pa-l").querySelector("[data-op]").click(); }));
+  $("#p-tudo").onclick = () => { S.selL = new Set(listaVisivel().map((l) => l.id)); selecionarDatasPelosDias(); pintarSelecao(); };
+  $("#p-limpa").onclick = () => { S.selL = new Set(); S.selD = new Set(); pintarSelecao(); };
 }
-function atualizarBotaoGravar() {
-  const b = $("#a-apl"); if (!b) return;
-  const pronta = S.prev && S.prev.chave === chave();
-  b.disabled = !pronta; b.title = pronta ? "Abre o resumo para confirmar" : "Rode a Prévia para esta seleção antes de gravar";
-  if (!pronta && $("#a-msg") && !$("#a-msg").querySelector(".msg,.okmsg")) $("#a-msg").innerHTML = `<span class="mute">Rode a Prévia para liberar a gravação.</span>`;
+function atualizarPainel() {
+  const p = $("#painel"); if (!p) return;
+  const foco = document.activeElement?.id, aberto = p.querySelector(".pa-mais")?.open, msg = $("#a-msg")?.innerHTML;
+  p.innerHTML = painelConteudo(); ligarPainel();
+  if (aberto) p.querySelector(".pa-mais").open = true;
+  if (msg) $("#a-msg").innerHTML = msg;
+  if (foco && (foco === "p-pct" || foco === "p-1n")) $("#" + foco)?.focus();
 }
+function chave() { return ""; }
+function atualizarBotaoGravar() {}
 /* marca as células selecionadas sem redesenhar a tabela inteira */
 function pintarSelecao() {
   document.querySelectorAll("td.c").forEach((td) => { const [id, d] = td.dataset.c.split("|"); td.classList.toggle("sel", S.selL.has(id) && S.selD.has(d)); });
   document.querySelectorAll("th.dh").forEach((th) => th.classList.toggle("sel", S.selD.has(th.dataset.d)));
   document.querySelectorAll("[data-l]").forEach((c) => { c.checked = S.selL.has(c.dataset.l); c.closest("tr").classList.toggle("off", !c.checked); });
   const tb = document.querySelector("table.g"); if (tb) tb.classList.toggle("temsel", S.selL.size > 0 && S.selD.size > 0);
-  const sp = document.querySelector(".acao .sel"); if (sp) { const n = S.selL.size, m = S.selD.size; sp.textContent = `${n} anúncio${n === 1 ? "" : "s"} × ${m} data${m === 1 ? "" : "s"}`; }
-  atualizarBotaoGravar();
+  if ($("#a-msg")?.querySelector(".msg")) $("#a-msg").innerHTML = "";
+  atualizarPainel();
 }
 let ARR = null; // arrasto em andamento
 function ligarGrade() {
@@ -472,11 +522,6 @@ function ligarGrade() {
     td.onmousemove = (e) => { if (!ARR) posTip(e); }; td.onmouseleave = () => (tip.hidden = true);
   });
   document.onmouseup = () => { ARR = null; };
-  $("#a-op").onchange = (e) => { S.op = e.target.value; desenharGrade(); };
-  if ($("#a-val")) $("#a-val").oninput = (e) => { S.val = e.target.value; atualizarBotaoGravar(); };
-  $("#a-prev").onclick = previa;
-  $("#a-apl").onclick = () => { if (S.prev && S.prev.chave === chave()) abrirResumo(S.prev); };
-  $("#a-sug").onclick = previaSugestao;
   pintarSelecao();
 }
 function tipCelula(d, c) {
@@ -571,7 +616,7 @@ function previaSugestao() {
   abrirResumo({ R, titulo: `Prévia: sugestão da automação em ${dates.length} data${dates.length === 1 ? "" : "s"}`, exec: () => api("apply_suggest", { region, from, to, dates, sell_ids }) });
 }
 async function executar(fn) {
-  const btns = document.querySelectorAll(".acao button"); btns.forEach((b) => (b.disabled = true));
+  const btns = document.querySelectorAll(".painel button"); btns.forEach((b) => (b.disabled = true));
   $("#a-msg").innerHTML = `<span class="mute">Gravando na Stays… pode levar alguns minutos.</span>`;
   try {
     const r = await fn(); S.prev = null;
