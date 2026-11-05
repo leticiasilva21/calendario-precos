@@ -63,6 +63,8 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .rea-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px}
 .rea-grid h3{font-size:1rem;margin:0 0 4px}
 .rea-t{width:auto;margin:6px 0}.rea-t input{width:64px}
+.massa{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 8px}.massa button{padding:3px 10px;font-size:.8rem}.massa .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
+tr.rsel td{background:var(--orange-soft)}
 .rea-nmin{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.rea-nmin label{font-weight:700}
 .esc-bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:8px 0;padding:10px 12px;background:var(--panel);border-radius:8px}
 .esc-bar label{font-weight:800}.esc-bar select{font-weight:700}
@@ -765,11 +767,20 @@ async function carregarEscopo() {
     desenharTabela(`<span class="msg">Recuperei uma edição de ${fmtHora(r.at)} desta tabela que não foi salva. Confira e clique em Salvar tabela, ou em Descartar mudanças.</span>`);
   } else { apagarRascunho(); desenharTabela(); }
 }
+let REG_SEL = new Set(); // regiões marcadas para ação em massa
 function desenharRegioes(msg) {
   const el = $("#regs"); if (!el) return;
+  const nSel = REG_SEL.size, todas = AG.regioes.length && AG.regioes.every((r) => REG_SEL.has(r.name));
   const gsel = (r) => `<select data-rg="${esc(r.name)}">${AG.grupos.map((g) => `<option value="${g.id}" ${g.id === r.grupo_id ? "selected" : ""}>${esc(g.nome)}</option>`).join("")}</select>`;
-  el.innerHTML = `<div class="rtab" style="max-height:420px"><table class="t"><tr><th>Região</th><th>Intervalo normal</th><th>Reservas por noite</th><th>Grupo</th><th>Tabela própria</th><th></th></tr>
-   ${AG.regioes.map((r) => `<tr><td>${esc(r.name)}</td><td>${r.intervalo == null ? "<span class='mute'>sem histórico</span>" : `${String(r.intervalo).replace(".", ",")} dia${Number(r.intervalo) === 1 ? "" : "s"}`}</td>
+  el.innerHTML = `<div class="massa">
+     <span><b>${nSel}</b> selecionada${nSel === 1 ? "" : "s"}</span>
+     <span class="small mute">Selecionar:</span><button data-msel="todas">Todas</button>${AG.grupos.map((g) => `<button data-msel="g${g.id}">${esc(g.nome)}</button>`).join("")}<button data-msel="nenhuma">Nenhuma</button>
+     <span class="sep"></span>
+     <button data-mass="on" ${nSel ? "" : "disabled"}>Marcar tabela própria</button>
+     <button data-mass="off" ${nSel ? "" : "disabled"}>Desmarcar tabela própria</button>
+     <label class="small">Mover para <select id="mass-grupo" ${nSel ? "" : "disabled"}><option value="">grupo…</option>${AG.grupos.map((g) => `<option value="${g.id}">${esc(g.nome)}</option>`).join("")}</select></label></div>
+   <div class="rtab" style="max-height:420px"><table class="t"><tr><th><input type="checkbox" id="sel-todas" ${todas ? "checked" : ""} title="Selecionar todas"></th><th>Região</th><th>Intervalo normal</th><th>Reservas por noite</th><th>Grupo</th><th>Tabela própria</th><th></th></tr>
+   ${AG.regioes.map((r) => `<tr class="${REG_SEL.has(r.name) ? "rsel" : ""}"><td><input type="checkbox" data-sel="${esc(r.name)}" ${REG_SEL.has(r.name) ? "checked" : ""}></td><td>${esc(r.name)}</td><td>${r.intervalo == null ? "<span class='mute'>sem histórico</span>" : `${String(r.intervalo).replace(".", ",")} dia${Number(r.intervalo) === 1 ? "" : "s"}`}</td>
      <td>${r.reservas_noite == null ? "—" : String(r.reservas_noite).replace(".", ",")}</td><td>${gsel(r)}</td>
      <td><input type="checkbox" data-rp="${esc(r.name)}" ${r.tabela_propria ? "checked" : ""}></td>
      <td>${r.tabela_propria ? `<button data-ed="${esc(r.name)}">Editar tabela</button>` : ""}</td></tr>`).join("")}</table></div>
@@ -792,6 +803,35 @@ function desenharRegioes(msg) {
     salvar(name, { tabela_propria: c.checked }, c.checked ? `${name} agora tem tabela própria — ela está aberta lá em cima para editar.` : `${name} voltou a usar a tabela do grupo ${g?.nome}.`);
   }));
   el.querySelectorAll("[data-ed]").forEach((b) => (b.onclick = async () => { ESC = { region: b.dataset.ed }; await carregarEscopo(); $("#esc-sel").scrollIntoView({ block: "start", behavior: "smooth" }); }));
+  // seleção em massa
+  el.querySelectorAll("[data-sel]").forEach((c) => (c.onchange = () => { c.checked ? REG_SEL.add(c.dataset.sel) : REG_SEL.delete(c.dataset.sel); desenharRegioes(); }));
+  $("#sel-todas").onchange = (e) => { REG_SEL = e.target.checked ? new Set(AG.regioes.map((r) => r.name)) : new Set(); desenharRegioes(); };
+  el.querySelectorAll("[data-msel]").forEach((b) => (b.onclick = () => {
+    const v = b.dataset.msel;
+    REG_SEL = v === "todas" ? new Set(AG.regioes.map((r) => r.name)) : v === "nenhuma" ? new Set() : new Set(AG.regioes.filter((r) => r.grupo_id === Number(v.slice(1))).map((r) => r.name));
+    desenharRegioes();
+  }));
+  const emMassa = async (patchDe, descricao) => {
+    const alvo = AG.regioes.filter((r) => REG_SEL.has(r.name));
+    const mudar = alvo.filter((r) => Object.entries(patchDe(r)).some(([k, v]) => r[k] !== v));
+    if (!mudar.length) return desenharRegioes(`<span class="mute">Nada a mudar nas ${alvo.length} selecionadas.</span>`);
+    if (!confirm(`${descricao} em ${mudar.length} região(ões)?\n\n${mudar.map((r) => r.name).join("\n")}`)) return;
+    el.querySelectorAll("button,select,input").forEach((x) => (x.disabled = true));
+    let ok = 0; const erros = [];
+    for (const r of mudar) {
+      const p = patchDe(r);
+      try { $("#regs-msg").innerHTML = `<span class="mute">Salvando ${ok + 1} de ${mudar.length}…</span>`;
+        await api("region_cfg_save", { region: r.name, grupo_id: p.grupo_id ?? r.grupo_id, tabela_propria: p.tabela_propria ?? r.tabela_propria }); Object.assign(r, p); ok++; }
+      catch (e) { erros.push(`${r.name}: ${e.message}`); }
+    }
+    S.grid = null;
+    if (ESC.region && !AG.regioes.find((r) => r.name === ESC.region)?.tabela_propria) ESC = { grupo_id: AG.regioes.find((r) => r.name === ESC.region)?.grupo_id ?? AG.grupos[0].id };
+    desenharRegioes(erros.length ? `<span class="msg">${ok} salvas, ${erros.length} com erro: ${esc(erros.join(" | "))}</span>` : `<span class="okmsg">${descricao}: ${ok} região(ões) atualizada(s).</span>`);
+    desenharEscopo(); await carregarEscopo();
+  };
+  el.querySelector('[data-mass="on"]').onclick = () => emMassa(() => ({ tabela_propria: true }), "Marcar tabela própria (quem não tiver começa com cópia da tabela do grupo)");
+  el.querySelector('[data-mass="off"]').onclick = () => emMassa(() => ({ tabela_propria: false }), "Desmarcar tabela própria (voltam a usar a tabela do grupo; a própria fica guardada)");
+  $("#mass-grupo").onchange = (e) => { const g = AG.grupos.find((x) => x.id === Number(e.target.value)); if (g) emMassa(() => ({ grupo_id: g.id }), `Mover para o grupo ${g.nome}`); };
 }
 function desenharTabela(msg) {
   const o = AUTO.occ, l = AUTO.lead, mudou = JSON.stringify(AUTO) !== AUTO_ORIG;
