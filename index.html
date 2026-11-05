@@ -986,7 +986,7 @@ function desenharReacao(msg) {
   el.innerHTML = `<label class="rea-on"><input type="checkbox" id="rea-ativo" ${R.ativo !== false ? "checked" : ""}> Usar a reação às vendas na sugestão</label>
    <div class="rea-grid">
     <div><h3>Freio: dias sem reserva</h3>
-     <p class="small mute">Dias sem reserva para aquela noite (desde a última reserva <b>ou</b> o último ajuste de preço) divididos pelo <b>intervalo normal da região naquela antecedência</b> (ex.: 4 dias a 15–30 dias do check-in, 10 dias a mais de 30). Assim a mesma configuração serve para região rápida e lenta. Vale só para <b>acréscimos</b> e só se ainda houver unidade livre.</p>
+     <p class="small mute">Dias sem reserva para aquela noite (desde a última reserva feita para ela) divididos pelo <b>intervalo normal da região naquela antecedência</b> (ex.: 4 dias a 15–30 dias do check-in, 10 dias a mais de 30). Assim a mesma configuração serve para região rápida e lenta. Vale só para <b>acréscimos</b> e só se ainda houver unidade livre.</p>
      <table class="t rea-t"><tr><th>De (× o normal)</th><th>Até (× o normal)</th><th>Usar do acréscimo</th><th></th></tr>
       ${R.freio.map((f, i) => `<tr><td><input type="number" min="0" step="0.5" data-f="${i}" data-k="de" value="${f.de}"> ×</td>
         <td><input type="number" min="0" step="0.5" data-f="${i}" data-k="ate" value="${f.ate ?? ""}" placeholder="ou mais"> ×</td>
@@ -1043,7 +1043,7 @@ function tipSug(s) {
 }
 function tipRecencia(s) {
   if (!s) return "";
-  return `Última reserva para esta noite: ${s.ultima_res ? fmtD(s.ultima_res) : "nenhuma"}` + (s.ultimo_ajuste ? ` | Último ajuste de preço: ${fmtHora(s.ultimo_ajuste)}` : "") + ` | Conta a partir do mais recente dos dois.` + (s.intervalo ? ` | Intervalo normal da região: ${s.intervalo} dia${s.intervalo === 1 ? "" : "s"}` + (s.vezes != null ? ` → ${fmtX(s.vezes)}× o normal` : "") : "");
+  return `Última reserva para esta noite: ${s.ultima_res ? fmtD(s.ultima_res) : "nenhuma"}` + (s.ultimo_ajuste ? ` | Último ajuste de preço: ${fmtHora(s.ultimo_ajuste)}` : "") + ` | Conta desde a última reserva para esta noite.` + (s.intervalo ? ` | Intervalo normal da região: ${s.intervalo} dia${s.intervalo === 1 ? "" : "s"}` + (s.vezes != null ? ` → ${fmtX(s.vezes)}× o normal` : "") : "");
 }
 function tipRitmo(s) {
   if (!s) return "";
@@ -1148,7 +1148,7 @@ function telaAjuda() {
      <li>Cada região usa a tabela do seu <b>grupo</b> (Rápida, Média, Lenta ou um grupo criado por você) ou uma <b>tabela própria</b>. As atuais foram calculadas a partir dos últimos 180 dias de vendas.</li>
      <li><b>Freio</b>: se a noite fica muitos dias sem reserva (comparado ao intervalo normal da região naquela antecedência), a sugestão usa só parte do acréscimo. Vale só para acréscimos.</li>
      <li><b>Aceleração</b>: se a noite vende acima do normal na última semana, soma pontos à sugestão.</li>
-     <li>O relógio do freio recomeça a cada reserva nova e a cada ajuste feito pela ferramenta.</li></ul>`)}
+     <li><b>Dias sem reserva</b> = dias desde a última reserva feita para aquela noite na região (ajuste de preço não zera a contagem).</li></ul>`)}
    ${sec("6. Rodadas automáticas", `<ul>
      <li>Rodam às <b>7h e 14h</b>, olhando os próximos <b>90 dias</b>, nas regiões com 5+ unidades.</li>
      <li>Proteções: no máximo <b>20 pontos por rodada</b> (o preço vai aos poucos), ignora diferenças menores que 5 pontos, <b>noite ajustada à mão fica fora por 7 dias</b>, para sozinha se passar do limite de diárias.</li>
