@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Calendário de Preços · Carpediem</title>
+<link rel="icon" href="icone.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+/* Identidade Carpediem, tema claro fixo */
+:root{--navy:#16294F;--orange:#F26B2E;--orange-soft:#fde9df;--bg:#fff;--panel:#F5F6F9;--line:#E3E6EC;--ink:#16294F;--mute:#5f6676;
+--bad:#B3261E;--bad-soft:#fbe7e5;--ok:#1d7a46;--ok-soft:#e3f4ea;--warn-soft:#fdf3d9;--occ:#eceff4;
+--font:"Nunito Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.45}
+.bar-top{background:var(--navy);color:#fff;padding:10px 16px}
+.bar-top .in{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.bar-top img{height:30px;display:block}
+.bar-top .t{font-weight:700;font-size:1.05rem;border-left:1px solid rgba(255,255,255,.3);padding-left:16px}
+.tabs{display:flex;gap:4px;margin-left:12px}
+.tabs button{background:transparent;border:0;color:#fff;opacity:.75;padding:6px 12px;border-radius:6px}
+.tabs button.on{opacity:1;background:rgba(255,255,255,.15)}
+.tabs button:hover{background:rgba(255,255,255,.1)}
+.user{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:.85rem}
+.user button{border-color:rgba(255,255,255,.5);color:#fff;background:transparent;padding:3px 10px}
+button{font:inherit;font-weight:700;border:1px solid var(--orange);background:var(--bg);color:var(--orange);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{background:var(--orange-soft)}
+button.prim{background:var(--orange);color:#fff}button.prim:hover{background:#e05d22}
+button[disabled]{opacity:.55;cursor:not-allowed}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+select,input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.faixa{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.faixa label{display:flex;gap:6px;align-items:center;font-weight:600;color:var(--mute)}
+.dows{display:flex;gap:3px}
+.dows button{padding:3px 8px;font-size:.8rem;border-color:var(--line);color:var(--mute)}
+.dows button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.mute{color:var(--mute)}.small{font-size:.82rem}
+.wrap{padding:16px}
+/* grade */
+.gridbox{overflow:auto;max-height:calc(100vh - 250px);border:1px solid var(--line);border-radius:8px;margin:12px 16px}
+table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
+.g th,.g td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0;white-space:nowrap}
+.g thead th{position:sticky;top:0;background:#fff;z-index:3}
+.g tr.occ th,.g tr.occ td{position:sticky;top:38px;z-index:3;background:#fff}
+.g tr.sug th,.g tr.sug td{position:sticky;top:62px;z-index:3;background:#fff}
+.g .nm{position:sticky;left:0;background:#fff;z-index:2;min-width:300px;max-width:300px;text-align:left;padding:4px 8px;overflow:hidden;text-overflow:ellipsis}
+.g thead .nm,.g tr.occ .nm,.g tr.sug .nm{z-index:4}
+.g .dh{min-width:64px;padding:3px 2px;text-align:center;cursor:pointer;font-weight:600;line-height:1.15}
+.g .dh small{display:block;color:var(--mute);font-weight:600;font-size:.7rem}
+.g .dh.we{background:#f3f4f8}
+.g .dh.sel{background:var(--orange);color:#fff}.g .dh.sel small{color:#fff}
+.g td.c{text-align:center;padding:3px 2px;height:34px;position:relative;cursor:pointer;font-variant-numeric:tabular-nums}
+.g td.c.full{background:var(--occ);color:#8a91a0}
+.g td.c.sel{box-shadow:inset 0 0 0 2px var(--orange)}
+.g td.c .p{font-weight:700;display:block}
+.g td.c .b{font-size:.66rem;display:inline-block;border-radius:4px;padding:0 3px;margin:0 1px;font-weight:700}
+.b.up{background:var(--ok-soft);color:var(--ok)}.b.dn{background:var(--bad-soft);color:var(--bad)}.b.n1{background:var(--warn-soft);color:#8a6100}
+.b.av{color:var(--mute);font-weight:600}
+.g td.o{text-align:center;font-weight:800;padding:3px 0}
+.g tr.row.off .nm{opacity:.55}
+.nm input{vertical-align:-2px;margin-right:6px}
+.nm .tag{font-size:.68rem;color:var(--mute);margin-left:4px;font-weight:600}
+/* painel de ação */
+.acao{position:sticky;bottom:0;background:#fff;border-top:2px solid var(--orange);padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;z-index:6;box-shadow:0 -4px 14px rgba(22,41,79,.08)}
+.acao .sel{font-weight:800}
+.prev{margin:0 16px 12px;padding:10px 12px;background:var(--panel);border-radius:8px;font-size:.85rem}
+.prev table{border-collapse:collapse;margin-top:6px}.prev td,.prev th{padding:2px 10px 2px 0;text-align:left}
+.msg{color:var(--bad);font-weight:600}.okmsg{color:var(--ok);font-weight:600}
+/* tabelas gerais */
+table.t{border-collapse:collapse;width:100%;font-size:.85rem}
+.t th,.t td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.t th{background:var(--panel);position:sticky;top:0}
+.t input{width:80px}
+.card{max-width:980px}
+h2{font-weight:800;font-size:1.15rem;margin:4px 0 8px}
+/* login */
+.login{min-height:100vh;display:grid;place-items:center;background:var(--panel);padding:16px}
+.login form{background:#fff;border-radius:12px;padding:28px;width:min(380px,100%);display:grid;gap:12px;box-shadow:0 6px 24px rgba(22,41,79,.08)}
+.login img{height:40px;justify-self:start}
+.login label{display:grid;gap:4px;font-weight:600}
+.login .link{border:0;background:none;color:var(--navy);text-decoration:underline;font-weight:600;padding:0;justify-self:start}
+.tip{position:fixed;z-index:20;background:var(--navy);color:#fff;border-radius:8px;padding:8px 10px;font-size:.78rem;pointer-events:none;max-width:320px;line-height:1.4}
+</style>
+</head>
+<body>
+<div id="app"><p class="wrap">Carregando…</p></div>
+<div class="tip" id="tip" hidden></div>
+<script>
+const SUPA = "https://ucavfotyciwnqwurzjny.supabase.co";
+const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjYXZmb3R5Y2l3bnF3dXJ6am55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5NzUzNjYsImV4cCI6MjA3MzU1MTM2Nn0.nE_W8wZZvJfzlvhP83ge1J0ooS3EcFVSlQYK28eTGU0";
+const FN = SUPA + "/functions/v1/calendario-precos";
+const DOMINIO = /^[^@\s]+@carpediemhomes\.com\.br$/i;
+let criandoSenha = /type=(recovery|invite|signup)/.test(location.hash);
+const sb = supabase.createClient(SUPA, ANON, { auth: { persistSession: true, detectSessionInUrl: true, storageKey: "calendario-precos-auth" } });
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const brl = (v) => v == null ? "—" : "R$ " + Math.round(v).toLocaleString("pt-BR");
+const DOW = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const hoje = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+const addD = (d, n) => { const x = new Date(d + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+const dowOf = (d) => new Date(d + "T12:00:00Z").getUTCDay();
+const fmtD = (d) => d.slice(8, 10) + "/" + d.slice(5, 7);
+const fmtHora = (iso) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+
+async function api(action, body = {}) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { telaLogin(); throw new Error("Sessão expirada."); }
+  const r = await fetch(FN, { method: "POST", headers: { apikey: ANON, Authorization: "Bearer " + session.access_token, "Content-Type": "application/json" }, body: JSON.stringify({ action, ...body }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "Erro " + r.status);
+  return j;
+}
+
+/* ---------- preço (mesma conta do servidor) ---------- */
+function calcular(base, pct, one) {
+  const f = 1 + (pct || 0) / 100;
+  const tem1 = base.some((t) => t[0] === 1);
+  let out = base.filter((t) => t[0] !== 1 || tem1).map((t) => [t[0], Math.round(t[1] * f)]);
+  if (one !== null && one !== undefined) {
+    const ref = out.filter((t) => t[0] > 1).sort((a, b) => a[0] - b[0])[0] || out[0];
+    if (ref) { const v = Math.round(ref[1] * (1 + one / 100)); out = out.filter((t) => t[0] !== 1); out.unshift([1, v]); }
+  }
+  out.sort((a, b) => a[0] - b[0]);
+  for (let i = 1; i < out.length; i++) if (out[i][1] > out[i - 1][1]) out[i][1] = out[i - 1][1];
+  return out;
+}
+const minTier = (p) => (p && p.length ? p.filter((t) => t[0] > 1)[0] || p[0] : null);
+const tierTxt = (p) => (p || []).map((t) => `${t[0]}+ noites: ${brl(t[1])}`).join("<br>") || "sem preço";
+
+/* ---------- login ---------- */
+function telaLogin(aviso) {
+  $("#app").innerHTML = `<div class="login"><form id="f-login"><img src="logo.png" alt="Carpediem Homes">
+    <h2>Calendário de Preços</h2><span class="mute">Entre com seu e-mail e senha Carpediem.</span>
+    <label>E-mail<input id="l-email" type="email" autocomplete="username" required></label>
+    <label>Senha<input id="l-senha" type="password" autocomplete="current-password" required></label>
+    <button class="prim" id="l-btn">Entrar</button><span class="msg" id="l-msg">${esc(aviso || "")}</span>
+    <button type="button" class="link" id="l-pa">Primeiro acesso ou esqueci minha senha</button></form></div>`;
+  $("#l-pa").onclick = () => telaPrimeiro($("#l-email").value);
+  $("#f-login").onsubmit = async (e) => {
+    e.preventDefault();
+    const email = $("#l-email").value.trim().toLowerCase();
+    if (!DOMINIO.test(email)) return ($("#l-msg").textContent = "Use seu e-mail @carpediemhomes.com.br.");
+    $("#l-btn").disabled = true;
+    const { error } = await sb.auth.signInWithPassword({ email, password: $("#l-senha").value });
+    $("#l-btn").disabled = false;
+    if (error) $("#l-msg").textContent = /invalid/i.test(error.message) ? "E-mail ou senha incorretos. Primeiro acesso? Use o link abaixo." : "Não consegui entrar agora.";
+  };
+}
+function telaPrimeiro(email0) {
+  $("#app").innerHTML = `<div class="login"><form id="f-pa"><img src="logo.png" alt="Carpediem Homes">
+    <h2>Primeiro acesso</h2><span class="mute">Vamos mandar um link para você criar ou trocar sua senha.</span>
+    <label>E-mail<input id="pa-email" type="email" value="${esc(email0 || "")}" required></label>
+    <button class="prim" id="pa-btn">Enviar link</button><span id="pa-msg"></span>
+    <button type="button" class="link" id="pa-v">Voltar para o login</button></form></div>`;
+  $("#pa-v").onclick = () => telaLogin();
+  $("#f-pa").onsubmit = async (e) => {
+    e.preventDefault();
+    const email = $("#pa-email").value.trim().toLowerCase(), m = $("#pa-msg");
+    if (!DOMINIO.test(email)) { m.className = "msg"; return (m.textContent = "Use seu e-mail @carpediemhomes.com.br."); }
+    $("#pa-btn").disabled = true;
+    try {
+      const voltar = location.hostname === "localhost" ? location.origin + location.pathname : undefined;
+      const r = await fetch(FN, { method: "POST", headers: { apikey: ANON, "Content-Type": "application/json" }, body: JSON.stringify({ action: "acesso", email, voltar }) });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error);
+      m.className = "okmsg"; m.textContent = `Enviamos um link para ${email}. Confira também o spam.`;
+    } catch (err) { m.className = "msg"; m.textContent = err.message || "Não consegui enviar."; }
+    $("#pa-btn").disabled = false;
+  };
+}
+function telaSenha(email) {
+  $("#app").innerHTML = `<div class="login"><form id="f-cs"><img src="logo.png" alt="Carpediem Homes"><h2>Crie sua senha</h2><span class="mute">${esc(email || "")}</span>
+    <label>Nova senha<input id="cs1" type="password" minlength="8" autocomplete="new-password" required></label>
+    <label>Repita<input id="cs2" type="password" minlength="8" autocomplete="new-password" required></label>
+    <button class="prim" id="cs-btn">Salvar e entrar</button><span class="msg" id="cs-msg"></span></form></div>`;
+  $("#f-cs").onsubmit = async (e) => {
+    e.preventDefault();
+    const a = $("#cs1").value;
+    if (a.length < 8) return ($("#cs-msg").textContent = "Mínimo de 8 caracteres.");
+    if (a !== $("#cs2").value) return ($("#cs-msg").textContent = "As senhas estão diferentes.");
+    const { error } = await sb.auth.updateUser({ password: a });
+    if (error) return ($("#cs-msg").textContent = "Não consegui salvar. Peça um novo link.");
+    criandoSenha = false; history.replaceState(null, "", location.pathname); iniciar();
+  };
+}
+
+/* ---------- estado ---------- */
+const S = {
+  user: null, tab: "cal", regions: [], limites: { PCT_MIN: -25, PCT_MAX: 200, ONE_NIGHT_MAX: 200 },
+  region: localStorage.getItem("cp-region") || "", from: hoje(), to: addD(hoje(), 41),
+  dows: new Set([0, 1, 2, 3, 4, 5, 6]), busca: "",
+  grid: null, sug: null, selL: new Set(), selD: new Set(), op: "pct", val: "",
+};
+try { const f = JSON.parse(localStorage.getItem("cp-dows") || "null"); if (Array.isArray(f)) S.dows = new Set(f); } catch {}
+
+function cabecalho() {
+  return `<header class="bar-top"><div class="in"><img src="logo-branco.png" alt="Carpediem Homes"><span class="t">Calendário de Preços</span>
+   <nav class="tabs">${[["cal", "Calendário"], ["auto", "Automação"], ["log", "Histórico"]].map(([k, n]) => `<button data-tab="${k}" class="${S.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
+   <span class="user"><span>${esc(S.user)}</span><button id="sair">Sair</button></span></div></header>`;
+}
+function ligarCab() {
+  $("#sair").onclick = async () => { await sb.auth.signOut(); telaLogin(); };
+  document.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { S.tab = b.dataset.tab; render(); }));
+}
+function render() {
+  if (S.tab === "cal") return telaCal();
+  if (S.tab === "auto") return telaAuto();
+  return telaLog();
+}
+
+/* ---------- calendário ---------- */
+function datas() { const out = []; for (let d = S.from; d <= S.to; d = addD(d, 1)) out.push(d); return out; }
+function faixaFiltros() {
+  return `<div class="faixa">
+   <label>Região <select id="f-reg"><option value="">Escolha…</option>${S.regions.map((r) => `<option ${r.name === S.region ? "selected" : ""} value="${esc(r.name)}">${esc(r.name)} (${r.n})</option>`).join("")}</select></label>
+   <label>De <input type="date" id="f-from" value="${S.from}" min="${hoje()}"></label>
+   <label>Até <input type="date" id="f-to" value="${S.to}" min="${hoje()}"></label>
+   <span class="dows" title="Dias da semana usados na seleção">${[1, 2, 3, 4, 5, 6, 0].map((d) => `<button data-dow="${d}" class="${S.dows.has(d) ? "on" : ""}">${DOW[d]}</button>`).join("")}</span>
+   <button class="prim" id="f-load">Carregar</button>
+   <button id="f-refresh" title="Relê preços e disponibilidade da Stays para a região agora">Atualizar da Stays</button>
+   <input id="f-busca" placeholder="Filtrar imóvel…" value="${esc(S.busca)}" style="flex:0 1 200px">
+   <span class="mute small" id="f-info"></span></div>`;
+}
+function telaCal() {
+  $("#app").innerHTML = cabecalho() + faixaFiltros() + `<div id="gridarea">${S.grid ? "" : `<p class="wrap mute">Escolha a região tarifária e o período e clique em <b>Carregar</b>.</p>`}</div>`;
+  ligarCab();
+  $("#f-reg").onchange = (e) => { S.region = e.target.value; localStorage.setItem("cp-region", S.region); };
+  $("#f-from").onchange = (e) => (S.from = e.target.value);
+  $("#f-to").onchange = (e) => (S.to = e.target.value);
+  document.querySelectorAll("[data-dow]").forEach((b) => (b.onclick = () => {
+    const d = +b.dataset.dow; S.dows.has(d) ? S.dows.delete(d) : S.dows.add(d);
+    localStorage.setItem("cp-dows", JSON.stringify([...S.dows])); b.classList.toggle("on");
+    if (S.grid) { selecionarDatasPelosDias(); desenharGrade(); }
+  }));
+  $("#f-busca").oninput = (e) => { S.busca = e.target.value; if (S.grid) desenharGrade(); };
+  $("#f-load").onclick = carregarGrade;
+  $("#f-refresh").onclick = async (e) => {
+    if (!S.region) return;
+    const b = e.target; b.disabled = true; b.textContent = "Atualizando…";
+    try { const r = await api("refresh", { region: S.region, from: S.from, to: S.to }); $("#f-info").textContent = `${r.ok} de ${r.total} anúncios atualizados.`; await carregarGrade(); }
+    catch (err) { $("#f-info").textContent = err.message; }
+    b.disabled = false; b.textContent = "Atualizar da Stays";
+  };
+  if (S.grid) desenharGrade();
+}
+function selecionarDatasPelosDias() {
+  S.selD = new Set(datas().filter((d) => S.dows.has(dowOf(d)) && d >= hoje()));
+}
+async function carregarGrade() {
+  if (!S.region) return ($("#f-info").textContent = "Escolha a região.");
+  if (S.to < S.from) return ($("#f-info").textContent = "A data final é antes da inicial.");
+  $("#gridarea").innerHTML = `<p class="wrap mute">Carregando…</p>`;
+  try {
+    const [g, s] = await Promise.all([api("grid", { region: S.region, from: S.from, to: S.to }), api("suggest", { region: S.region, from: S.from, to: S.to })]);
+    S.grid = g; S.sug = Object.fromEntries((s.dias || []).map((x) => [x.date, x]));
+    S.selL = new Set((g.listings || []).filter((l) => !l.is_margem).map((l) => l.id));
+    selecionarDatasPelosDias();
+    $("#f-info").textContent = g.synced_at ? `Dados da Stays de ${fmtHora(g.synced_at)} (mais antigo)` : "Ainda sem dados da Stays para essa região — clique em Atualizar da Stays.";
+    desenharGrade();
+  } catch (err) { $("#gridarea").innerHTML = `<p class="wrap msg">${esc(err.message)}</p>`; }
+}
+function corOcc(p) {
+  if (p == null) return "#fff";
+  if (p >= 85) return "#c9ebd6"; if (p >= 70) return "#e3f4ea"; if (p >= 50) return "#fdf3d9"; if (p >= 30) return "#fde4d3"; return "#fbd5d1";
+}
+function listaVisivel() {
+  const q = S.busca.trim().toLowerCase();
+  return (S.grid.listings || []).filter((l) => !q || (l.nome || "").toLowerCase().includes(q) || (l.code || "").toLowerCase().includes(q));
+}
+function desenharGrade() {
+  const G = S.grid, D = datas(), L = listaVisivel();
+  const occ = (d) => { const o = G.occ[d]; return o && o[0] ? Math.round(1000 * (1 - o[1] / o[0])) / 10 : null; };
+  let h = `<div class="gridbox"><table class="g"><thead><tr><th class="nm"><input type="checkbox" id="all" ${L.every((l) => S.selL.has(l.id)) ? "checked" : ""}> ${L.length} anúncios</th>`;
+  for (const d of D) { const w = dowOf(d); h += `<th class="dh ${w === 0 || w === 6 ? "we" : ""} ${S.selD.has(d) ? "sel" : ""}" data-d="${d}">${fmtD(d)}<small>${DOW[w]}</small></th>`; }
+  h += `</tr></thead><tbody><tr class="occ"><th class="nm">Ocupação da região <span class="tag">ocupadas ÷ em operação</span></th>`;
+  for (const d of D) { const p = occ(d), o = G.occ[d]; h += `<td class="o" style="background:${corOcc(p)}" data-tipocc="${d}">${p == null ? "—" : p.toFixed(0) + "%"}<div class="small mute" style="font-weight:600">${o ? o[0] - o[1] + "/" + o[0] : ""}</div></td>`; }
+  h += `</tr><tr class="sug"><th class="nm">Sugestão da automação</th>`;
+  for (const d of D) { const s = S.sug?.[d]; h += `<td class="o small">${s && s.pct != null ? `<span class="b ${s.pct >= 0 ? "up" : "dn"}">${s.pct > 0 ? "+" : ""}${s.pct}%</span>` : "<span class='mute'>·</span>"}</td>`; }
+  h += `</tr>`;
+  for (const l of L) {
+    const cells = G.cells[l.id] || {};
+    const on = S.selL.has(l.id);
+    const tags = [l.is_margem ? "margem" : "", l.is_duplicada ? "duplicado" : "", l.filhos ? `grupo ${l.filhos + 1} un.` : ""].filter(Boolean).join(" · ");
+    h += `<tr class="row ${on ? "" : "off"}"><th class="nm" title="${esc(l.nome)}"><input type="checkbox" data-l="${l.id}" ${on ? "checked" : ""}>${esc(l.code || "")} · ${esc(l.nome)}${tags ? `<span class="tag">${tags}</span>` : ""}</th>`;
+    for (const d of D) {
+      const c = cells[d]; const units = c?.[0] ?? 0, avail = c?.[1], prices = c?.[2], pct = Number(c?.[4] || 0), one = c?.[5];
+      const mt = minTier(prices); const full = avail === 0;
+      const sel = on && S.selD.has(d);
+      const badges = (pct ? `<span class="b ${pct > 0 ? "up" : "dn"}">${pct > 0 ? "+" : ""}${pct}%</span>` : "") + (one != null ? `<span class="b n1">1N</span>` : "") + (units > 1 ? `<span class="b av">${avail ?? "?"}/${units}</span>` : "");
+      h += `<td class="c ${full ? "full" : ""} ${sel ? "sel" : ""}" data-c="${l.id}|${d}"><span class="p">${mt ? brl(mt[1]) : "—"}</span>${badges}</td>`;
+    }
+    h += `</tr>`;
+  }
+  h += `</tbody></table></div><div id="prev"></div>` + painelAcao();
+  $("#gridarea").innerHTML = h;
+  ligarGrade();
+}
+function painelAcao() {
+  const n = S.selL.size, m = S.selD.size, L = S.limites;
+  const ops = [["pct", "Ajustar diária (% sobre a base)"], ["one_night_on", "Liberar 1 noite (+% sobre a diária mínima atual)"], ["one_night_off", "Tirar a liberação de 1 noite"], ["reset", "Voltar para a diária base"], ["rebase", "Redefinir base = preço atual da Stays"]];
+  const pedeVal = S.op === "pct" || S.op === "one_night_on";
+  return `<div class="acao"><span class="sel">${n} anúncio${n === 1 ? "" : "s"} × ${m} data${m === 1 ? "" : "s"}</span>
+   <select id="a-op">${ops.map(([k, t]) => `<option value="${k}" ${S.op === k ? "selected" : ""}>${t}</option>`).join("")}</select>
+   ${pedeVal ? `<label class="mute">% <input id="a-val" type="number" step="1" style="width:80px" value="${esc(S.val)}" placeholder="${S.op === "pct" ? `${L.PCT_MIN} a +${L.PCT_MAX}` : `0 a ${L.ONE_NIGHT_MAX}`}"></label>` : ""}
+   <button id="a-prev">Prévia</button><button class="prim" id="a-apl" ${n && m ? "" : "disabled"}>Gravar na Stays</button>
+   <button id="a-sug" title="Grava a sugestão da tabela de automação nas datas selecionadas, para os anúncios selecionados">Aplicar sugestão da automação</button>
+   <span id="a-msg" class="small"></span></div>`;
+}
+function ligarGrade() {
+  $("#all").onchange = (e) => { for (const l of listaVisivel()) e.target.checked ? S.selL.add(l.id) : S.selL.delete(l.id); desenharGrade(); };
+  document.querySelectorAll("[data-l]").forEach((c) => (c.onchange = () => { c.checked ? S.selL.add(c.dataset.l) : S.selL.delete(c.dataset.l); desenharGrade(); }));
+  document.querySelectorAll("th.dh").forEach((th) => (th.onclick = () => { const d = th.dataset.d; if (d < hoje()) return; S.selD.has(d) ? S.selD.delete(d) : S.selD.add(d); desenharGrade(); }));
+  const tip = $("#tip");
+  document.querySelectorAll("td.c").forEach((td) => {
+    td.onmouseenter = (e) => {
+      const [id, d] = td.dataset.c.split("|"); const c = S.grid.cells[id]?.[d];
+      if (!c) return;
+      tip.innerHTML = `<b>${fmtD(d)}</b> · ${c[0] > 1 ? `${c[1]} de ${c[0]} unidades livres` : c[1] > 0 ? "livre" : "ocupado / fechado"}<br><b>Atual</b><br>${tierTxt(c[2])}<br><b>Base</b><br>${tierTxt(c[3])}${c[4] ? `<br>Ajuste: ${c[4] > 0 ? "+" : ""}${c[4]}%` : ""}${c[5] != null ? `<br>1 noite liberada: +${c[5]}%` : ""}`;
+      tip.hidden = false; posTip(e);
+    };
+    td.onmousemove = posTip; td.onmouseleave = () => (tip.hidden = true);
+    td.onclick = () => { const [id, d] = td.dataset.c.split("|"); if (d < hoje()) return; S.selD.has(d) ? S.selD.delete(d) : S.selD.add(d); S.selL.add(id); desenharGrade(); };
+  });
+  $("#a-op").onchange = (e) => { S.op = e.target.value; desenharGrade(); };
+  if ($("#a-val")) $("#a-val").oninput = (e) => (S.val = e.target.value);
+  $("#a-prev").onclick = previa;
+  $("#a-apl").onclick = gravar;
+  $("#a-sug").onclick = gravarSugestao;
+}
+function posTip(e) { const t = $("#tip"); t.style.left = Math.min(e.clientX + 14, innerWidth - 330) + "px"; t.style.top = Math.min(e.clientY + 14, innerHeight - 200) + "px"; }
+
+function validar() {
+  const v = Number(S.val), L = S.limites;
+  if (S.op === "pct" && (S.val === "" || !isFinite(v) || v < L.PCT_MIN || v > L.PCT_MAX)) return `Informe um ajuste entre ${L.PCT_MIN}% e +${L.PCT_MAX}%.`;
+  if (S.op === "one_night_on" && (S.val === "" || !isFinite(v) || v < 0 || v > L.ONE_NIGHT_MAX)) return `Informe o acréscimo de 1 noite entre 0% e ${L.ONE_NIGHT_MAX}%.`;
+  if (!S.selL.size || !S.selD.size) return "Selecione anúncios e datas.";
+  return null;
+}
+function simular() {
+  const v = Number(S.val), out = [];
+  for (const id of S.selL) for (const d of S.selD) {
+    const c = S.grid.cells[id]?.[d]; if (!c) continue;
+    const antes = c[2] || [], base0 = c[3]?.length ? c[3] : antes; if (!base0.length) continue;
+    let pct = Number(c[4] || 0), one = c[5] ?? null, base = base0;
+    if (S.op === "pct") pct = v; if (S.op === "one_night_on") one = v; if (S.op === "one_night_off") one = null;
+    if (S.op === "reset") { pct = 0; one = null; }
+    if (S.op === "rebase") { base = one != null ? antes.filter((t) => t[0] !== 1) : antes; pct = 0; }
+    const depois = calcular(base, pct, one);
+    if (JSON.stringify(depois) !== JSON.stringify(antes)) out.push({ id, d, antes, depois });
+  }
+  return out;
+}
+function previa() {
+  const e = validar(); if (e) return ($("#a-msg").innerHTML = `<span class="msg">${e}</span>`);
+  const ch = simular(); const nome = Object.fromEntries(S.grid.listings.map((l) => [l.id, l.nome]));
+  const fmt = (p) => p.map((t) => `${t[0]}n ${brl(t[1])}`).join(" · ");
+  $("#prev").innerHTML = `<div class="prev"><b>${ch.length} diárias vão mudar</b> (as outras já estão nesse valor).${ch.length ? `<table><tr><th>Anúncio</th><th>Data</th><th>Antes</th><th>Depois</th></tr>${ch.slice(0, 12).map((c) => `<tr><td>${esc((nome[c.id] || "").slice(0, 48))}</td><td>${fmtD(c.d)}</td><td>${fmt(c.antes)}</td><td><b>${fmt(c.depois)}</b></td></tr>`).join("")}</table>${ch.length > 12 ? `<span class="mute">… e mais ${ch.length - 12}.</span>` : ""}` : ""}</div>`;
+}
+async function gravar() {
+  const e = validar(); if (e) return ($("#a-msg").innerHTML = `<span class="msg">${e}</span>`);
+  const ch = simular();
+  if (!ch.length) return ($("#a-msg").innerHTML = `<span class="mute">Nada muda com essa seleção.</span>`);
+  if (!confirm(`Gravar ${ch.length} diárias na Stays (${S.selL.size} anúncios)?`)) return;
+  await executar(() => api("apply", { op: S.op, pct: Number(S.val), one_night_pct: Number(S.val), sell_ids: [...S.selL], dates: [...S.selD].sort() }));
+}
+async function gravarSugestao() {
+  const dates = [...S.selD].filter((d) => S.sug?.[d]?.pct != null).sort();
+  if (!S.selL.size || !dates.length) return ($("#a-msg").innerHTML = `<span class="msg">Nenhuma data selecionada tem regra de automação aplicável.</span>`);
+  if (!confirm(`Gravar a sugestão da automação em ${dates.length} datas × ${S.selL.size} anúncios?`)) return;
+  await executar(() => api("apply_suggest", { region: S.region, from: S.from, to: S.to, dates, sell_ids: [...S.selL] }));
+}
+async function executar(fn) {
+  const btns = document.querySelectorAll(".acao button"); btns.forEach((b) => (b.disabled = true));
+  $("#a-msg").innerHTML = `<span class="mute">Gravando na Stays… pode levar alguns minutos.</span>`;
+  try {
+    const r = await fn();
+    const txt = `Pronto: ${r.ok} gravadas, ${r.sem_mudanca} já estavam certas${r.sem_base ? `, ${r.sem_base} sem preço na Stays` : ""}.`;
+    await carregarGrade();
+    $("#a-msg").innerHTML = r.erro ? `<span class="msg">${r.erro} com erro — reprecificar: ${esc(r.erros.join(" | "))}</span>` : `<span class="okmsg">${txt}</span>`;
+    if (r.erro) alert(`Atenção: ${r.erro} diárias NÃO foram gravadas corretamente.\n\n${r.erros.join("\n")}`);
+  } catch (err) { $("#a-msg").innerHTML = `<span class="msg">${esc(err.message)}</span>`; btns.forEach((b) => (b.disabled = false)); }
+}
+
+/* ---------- automação ---------- */
+let REGRAS = [];
+async function telaAuto() {
+  $("#app").innerHTML = cabecalho() + `<div class="wrap card"><h2>Tabela de automação: ocupação × antecedência</h2>
+   <p class="mute">Para cada dia, o sistema calcula a ocupação da região tarifária e quantos dias faltam para o check-in. A primeira linha que encaixar define o ajuste sobre a diária base (de ${S.limites.PCT_MIN}% a +${S.limites.PCT_MAX}%). A sugestão aparece na grade do calendário; nada é gravado sem você clicar em <b>Aplicar sugestão</b>.</p>
+   <div id="rg">Carregando…</div></div>`;
+  ligarCab();
+  try { REGRAS = (await api("rules_get")).rules; desenharRegras(); } catch (e) { $("#rg").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
+}
+function desenharRegras(msg) {
+  $("#rg").innerHTML = `<table class="t"><tr><th>#</th><th>Ocupação de (%)</th><th>até (%)</th><th>Antecedência de (dias)</th><th>até (dias)</th><th>Ajuste (%)</th><th>Ativa</th><th></th></tr>
+   ${REGRAS.map((r, i) => `<tr><td>${i + 1}</td>${["occ_min", "occ_max", "lead_min", "lead_max", "pct"].map((k) => `<td><input type="number" data-i="${i}" data-k="${k}" value="${r[k] ?? ""}"></td>`).join("")}
+   <td><input type="checkbox" data-i="${i}" data-k="ativo" ${r.ativo !== false ? "checked" : ""} style="width:auto"></td>
+   <td><button data-up="${i}" title="Subir">↑</button> <button data-del="${i}" title="Apagar linha">Apagar</button></td></tr>`).join("")}</table>
+   <p><button id="r-add">+ Adicionar linha</button> <button class="prim" id="r-save">Salvar regras</button> <span id="r-msg">${msg || ""}</span></p>
+   <p class="mute small">Dica: as faixas são inclusivas (ex.: 0–40% e 40–60% — o dia com exatamente 40% cai na primeira linha).</p>`;
+  document.querySelectorAll("#rg input[data-k]").forEach((inp) => (inp.onchange = () => { const r = REGRAS[+inp.dataset.i]; r[inp.dataset.k] = inp.type === "checkbox" ? inp.checked : inp.value; }));
+  document.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => { REGRAS.splice(+b.dataset.del, 1); desenharRegras(); }));
+  document.querySelectorAll("[data-up]").forEach((b) => (b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [REGRAS[i - 1], REGRAS[i]] = [REGRAS[i], REGRAS[i - 1]]; desenharRegras(); } }));
+  $("#r-add").onclick = () => { REGRAS.push({ occ_min: 0, occ_max: 100, lead_min: 0, lead_max: 7, pct: 0, ativo: true }); desenharRegras(); };
+  $("#r-save").onclick = async () => {
+    try { await api("rules_save", { rules: REGRAS }); REGRAS = (await api("rules_get")).rules; S.grid = null; desenharRegras(`<span class="okmsg">Regras salvas.</span>`); }
+    catch (e) { $("#r-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; }
+  };
+}
+
+/* ---------- histórico ---------- */
+async function telaLog() {
+  $("#app").innerHTML = cabecalho() + `<div class="faixa"><label>Região <select id="lg-reg"><option value="">Todas</option>${S.regions.map((r) => `<option>${esc(r.name)}</option>`).join("")}</select></label>
+   <label>Usuário <input id="lg-user" placeholder="e-mail"></label><button id="lg-go">Filtrar</button></div><div class="wrap" id="lg">Carregando…</div>`;
+  ligarCab();
+  $("#lg-go").onclick = carregarLog; carregarLog();
+}
+const NOMES_OP = { pct: "Ajuste %", one_night_on: "Liberou 1 noite", one_night_off: "Tirou 1 noite", reset: "Voltou à base", rebase: "Redefiniu base", desfazer: "Desfez", regras: "Alterou regras" };
+async function carregarLog() {
+  try {
+    const { rows } = await api("log", { region: $("#lg-reg").value || undefined, user: $("#lg-user").value.trim() || undefined, limit: 1000 });
+    const lotes = {};
+    for (const r of rows) { const k = r.batch_id || "r" + r.id; (lotes[k] ??= { ...r, n: 0, erros: 0, imoveis: new Set(), datas: [] }); lotes[k].n++; if (r.status !== "ok") lotes[k].erros++; if (r.sell_nome) lotes[k].imoveis.add(r.sell_nome); if (r.date) lotes[k].datas.push(r.date); }
+    const fmt = (p) => (p || []).map((t) => `${t[0]}n ${brl(t[1])}`).join(" · ");
+    $("#lg").innerHTML = `<table class="t"><tr><th>Quando</th><th>Usuário</th><th>Ação</th><th>Região</th><th>Imóveis</th><th>Datas</th><th>Diárias</th><th></th></tr>
+     ${Object.values(lotes).map((b) => { const ds = b.datas.sort(); return `<tr><td>${fmtHora(b.at)}</td><td>${esc(b.user_email)}</td><td>${NOMES_OP[b.action] || esc(b.action)}${b.pct != null && b.action === "pct" ? ` ${b.pct > 0 ? "+" : ""}${b.pct}%` : ""}${b.action === "one_night_on" ? ` +${b.one_night_pct}%` : ""}<div class="small mute">${esc(b.origem || "")}</div></td>
+       <td>${esc(b.region_name || "")}</td><td>${b.imoveis.size}<div class="small mute">${esc([...b.imoveis].slice(0, 2).join(", "))}${b.imoveis.size > 2 ? "…" : ""}</div></td>
+       <td>${ds.length ? fmtD(ds[0]) + (ds.length > 1 ? " a " + fmtD(ds[ds.length - 1]) : "") : ""}</td>
+       <td>${b.n}${b.erros ? ` <span class="msg">(${b.erros} com erro)</span>` : ""}<div class="small mute">${b.date ? "ex.: " + fmt(b.before) + " → " + fmt(b.after) : ""}</div></td>
+       <td>${b.batch_id && b.action !== "regras" && b.action !== "desfazer" && b.n - b.erros > 0 ? `<button data-rev="${b.batch_id}">Desfazer</button>` : ""}</td></tr>`; }).join("") || `<tr><td colspan="8" class="mute">Nenhuma alteração ainda.</td></tr>`}</table>`;
+    document.querySelectorAll("[data-rev]").forEach((b) => (b.onclick = async () => {
+      if (!confirm("Voltar as diárias desse lote para o valor anterior na Stays?")) return;
+      b.disabled = true; b.textContent = "Desfazendo…";
+      try { const r = await api("revert", { batch_id: b.dataset.rev }); alert(r.erros.length ? `Desfeito com erros:\n${r.erros.join("\n")}` : `Desfeito: ${r.ok} diárias.`); S.grid = null; carregarLog(); }
+      catch (e) { alert(e.message); b.disabled = false; b.textContent = "Desfazer"; }
+    }));
+  } catch (e) { $("#lg").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
+}
+
+/* ---------- início ---------- */
+async function iniciar() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return telaLogin();
+  if (!DOMINIO.test(session.user.email || "")) { await sb.auth.signOut(); return telaLogin("Só contas @carpediemhomes.com.br."); }
+  S.user = session.user.email;
+  try { const r = await api("regions"); S.regions = r.regions; S.limites = r.limites || S.limites; }
+  catch (e) { $("#app").innerHTML = `<p class="wrap msg">${esc(e.message)}</p>`; return; }
+  if (S.region && !S.regions.some((r) => r.name === S.region)) S.region = "";
+  render();
+}
+sb.auth.onAuthStateChange((ev, session) => {
+  if (ev === "PASSWORD_RECOVERY") { criandoSenha = true; telaSenha(session?.user?.email); }
+  else if (ev === "SIGNED_IN" && !criandoSenha && !S.user) iniciar();
+});
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (criandoSenha && session) return telaSenha(session.user.email);
+  if (!criandoSenha) iniciar();
+})();
+</script>
+</body>
+</html>
