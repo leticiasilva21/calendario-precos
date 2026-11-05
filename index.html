@@ -330,7 +330,7 @@ function legenda() {
   return `<details class="legenda" id="legenda" ${aberta ? "open" : ""}><summary>Legenda</summary><div class="itens">
    <span class="it"><span class="escala"></span>Cor da célula: preço atual vs. diária base (verde abaixo até −25%, branco na base, laranja acima até +50%)</span>
    <span class="it"><span class="sw" style="background:var(--occ)"></span>Reservado / sem unidade livre</span>
-   <span class="it"><span class="sw" style="background:repeating-linear-gradient(135deg,#eef0f4 0 4px,#d9dde5 4px 6px)"></span>Bloqueado</span>
+   <span class="it"><span class="sw" style="background:repeating-linear-gradient(135deg,#eef0f4 0 4px,#d9dde5 4px 6px)"></span>Bloqueado ou manutenção (sem reserva no dia)</span>
    <span class="it"><b style="color:var(--ink)">2/8</b> unidades livres ÷ total do grupo (na ocupação: ocupadas ÷ em operação)</span>
    <span class="it"><span class="sw" style="background:var(--orange)"></span>Data selecionada (cabeçalho laranja)</span>
    <span class="it"><span class="sg"><s>219</s> <b style="color:var(--ink)">197</b></span> preço atual (riscado) → sugestão da automação</span>
@@ -371,7 +371,7 @@ function desenharGrade() {
         const prop = minTier(calcular(base, sg.pct, one ?? null));
         if (prop && mt && prop[1] !== mt[1]) sgTxt = `<span class="sg"><s>${num(mt[1])}</s> <b>${num(prop[1])}</b></span>`;
       }
-      const bloq = full && Number(c?.[6] || 0) > 0; // c[6] = unidades bloqueadas (quando o servidor enviar)
+      const bloq = full && Number(c?.[6] || 0) > 0 && !Number(c?.[7] || 0); // c[6] bloqueadas, c[7] reservadas (tabela de reservas)
       const badges = (pct ? `<span class="b ${pct > 0 ? "up" : "dn"}">${pct > 0 ? "+" : ""}${pct}%</span>` : "") + (one != null ? `<span class="b n1">1N</span>` : "") + (units > 1 ? `<span class="b av">${avail ?? "?"}/${units}</span>` : "");
       const bg = corDesvio(dv);
       h += `<td class="c ${full ? (bloq ? "blk" : "full") : ""} ${sel ? "sel" : ""}" data-c="${l.id}|${d}"${bg ? ` style="background:${bg}"` : ""}>${sgTxt || `<span class="p">${mt ? brl(mt[1]) : "—"}</span>`}${badges}</td>`;
@@ -466,7 +466,7 @@ function ligarGrade() {
   pintarSelecao();
 }
 function tipCelula(d, c) {
-  return `<b>${fmtD(d)}</b> · ${c[0] > 1 ? `${c[1]} de ${c[0]} unidades livres` : c[1] > 0 ? "livre" : Number(c[6] || 0) > 0 ? "bloqueado" : "ocupado / fechado"}<br><b>Atual</b><br>${tierTxt(c[2])}<br><b>Base</b><br>${tierTxt(c[3])}${c[4] ? `<br>Ajuste: ${c[4] > 0 ? "+" : ""}${c[4]}%` : ""}${c[5] != null ? `<br>1 noite liberada: +${c[5]}%` : ""}${(() => { const dv = desvioPct(c[2], c[3]?.length ? c[3] : c[2]); return dv != null && Math.abs(dv) >= 0.5 ? `<br>Atual vs. base: ${dv > 0 ? "+" : ""}${dv.toFixed(0)}%` : ""; })()}${S.sug?.[d]?.pct != null ? `<br>Sugestão da automação: ${S.sug[d].pct > 0 ? "+" : ""}${S.sug[d].pct}% sobre a base` : ""}`;
+  return `<b>${fmtD(d)}</b> · ${c[0] > 1 ? `${c[1]} de ${c[0]} unidades livres` : c[1] > 0 ? "livre" : Number(c[6] || 0) > 0 && !Number(c[7] || 0) ? "bloqueado / manutenção" : Number(c[7] || 0) > 0 ? "reservado" : "fechado"}${c[0] > 1 && (Number(c[6] || 0) || Number(c[7] || 0)) ? ` (${c[7] || 0} reservada${c[7] == 1 ? "" : "s"}, ${c[6] || 0} bloqueada${c[6] == 1 ? "" : "s"})` : ""}<br><b>Atual</b><br>${tierTxt(c[2])}<br><b>Base</b><br>${tierTxt(c[3])}${c[4] ? `<br>Ajuste: ${c[4] > 0 ? "+" : ""}${c[4]}%` : ""}${c[5] != null ? `<br>1 noite liberada: +${c[5]}%` : ""}${(() => { const dv = desvioPct(c[2], c[3]?.length ? c[3] : c[2]); return dv != null && Math.abs(dv) >= 0.5 ? `<br>Atual vs. base: ${dv > 0 ? "+" : ""}${dv.toFixed(0)}%` : ""; })()}${S.sug?.[d]?.pct != null ? `<br>Sugestão da automação: ${S.sug[d].pct > 0 ? "+" : ""}${S.sug[d].pct}% sobre a base` : ""}`;
 }
 function posTip(e) { const t = $("#tip"); t.style.left = Math.min(e.clientX + 14, innerWidth - 330) + "px"; t.style.top = Math.min(e.clientY + 14, innerHeight - 200) + "px"; }
 
