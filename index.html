@@ -668,24 +668,45 @@ function validarTabela() {
   for (const lin of AUTO.pct) for (const p of lin) if (p !== "" && (!isFinite(Number(p)) || Number(p) < L.PCT_MIN || Number(p) > L.PCT_MAX)) return `Use ajustes entre ${L.PCT_MIN}% e +${L.PCT_MAX}% (ou deixe vazio para não sugerir nada).`;
   return null;
 }
+const RASC = "cp-auto-rascunho";
+function guardarRascunho() { try { localStorage.setItem(RASC, JSON.stringify({ at: new Date().toISOString(), user: S.user, auto: AUTO })); } catch {} }
+function apagarRascunho() { try { localStorage.removeItem(RASC); } catch {} }
+function lerRascunho() { try { const r = JSON.parse(localStorage.getItem(RASC) || "null"); return r && r.auto && r.auto.occ ? r : null; } catch { return null; } }
+function atualizarRotulos() {
+  document.querySelectorAll("[data-li]").forEach((el) => (el.textContent = leadIni(+el.dataset.li)));
+  document.querySelectorAll("[data-oi]").forEach((el) => (el.textContent = occIni(+el.dataset.oi)));
+}
+function estadoSalvar() {
+  const mudou = JSON.stringify(AUTO) !== AUTO_ORIG, b = $("#r-save"), u = $("#r-undo"), m = $("#r-msg");
+  if (b) b.disabled = !mudou; if (u) u.hidden = !mudou;
+  if (m && !m.querySelector(".msg")) m.innerHTML = mudou ? `<span class="mute">Há mudanças não salvas (guardadas neste navegador até você salvar).</span>` : "";
+  if (mudou) guardarRascunho(); else apagarRascunho();
+}
 async function telaAuto() {
   $("#app").innerHTML = cabecalho() + `<div class="wrap card"><h2>Automação: ocupação × antecedência</h2>
    <p class="mute">Cada quadradinho é o ajuste sobre a diária base quando a ocupação da região e a antecedência do check-in caem naquela faixa (de ${S.limites.PCT_MIN}% a +${S.limites.PCT_MAX}%). Quadradinho vazio = sem sugestão. A sugestão aparece na grade do calendário; nada é gravado na Stays sem você aplicar.</p>
    <div id="rg">Carregando…</div></div>`;
   ligarCab();
-  try { const rs = (await api("rules_get")).rules; AUTO = tabelaDeRegras(rs); AUTO_ORIG = JSON.stringify(AUTO); desenharTabela(); }
+  try {
+    const rs = (await api("rules_get")).rules; AUTO = tabelaDeRegras(rs); AUTO_ORIG = JSON.stringify(AUTO);
+    const r = lerRascunho();
+    if (r && JSON.stringify(r.auto) !== AUTO_ORIG) {
+      AUTO = r.auto;
+      desenharTabela(`<span class="msg">Recuperei uma edição de ${fmtHora(r.at)} que não foi salva. Confira e clique em Salvar tabela, ou em Descartar mudanças.</span>`);
+    } else { apagarRascunho(); desenharTabela(); }
+  }
   catch (e) { $("#rg").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
 }
 function desenharTabela(msg) {
   const o = AUTO.occ, l = AUTO.lead, mudou = JSON.stringify(AUTO) !== AUTO_ORIG;
   let h = `<div class="ftab"><table><tr><th class="cant">Ocupação ↓ · Antecedência →</th>`;
   l.forEach((v, j) => {
-    h += `<th class="ch"><div class="faixa-lbl">${leadIni(j)}${v == null ? " dias ou mais" : `–<input type="number" min="0" step="1" data-lead="${j}" value="${v}" aria-label="Até quantos dias"> dias`}</div>
+    h += `<th class="ch"><div class="faixa-lbl"><span data-li="${j}">${leadIni(j)}</span>${v == null ? " dias ou mais" : `–<input type="number" min="0" step="1" data-lead="${j}" value="${v}" aria-label="Até quantos dias"> dias`}</div>
       ${l.length > 1 ? `<button class="x" data-dlead="${j}" title="Apagar esta coluna">×</button>` : ""}</th>`;
   });
   h += `<th class="addc"><button id="add-lead" title="Dividir a última coluna em duas">+ coluna</button></th></tr>`;
   o.forEach((v, i) => {
-    h += `<tr><th class="rh"><div class="faixa-lbl">${occIni(i)}–${v === 100 ? "100" : `<input type="number" min="1" max="99" step="1" data-occ="${i}" value="${v}" aria-label="Até qual ocupação">`}%</div>
+    h += `<tr><th class="rh"><div class="faixa-lbl"><span data-oi="${i}">${occIni(i)}</span>–${v === 100 ? "100" : `<input type="number" min="1" max="99" step="1" data-occ="${i}" value="${v}" aria-label="Até qual ocupação">`}%</div>
       ${o.length > 1 ? `<button class="x" data-docc="${i}" title="Apagar esta linha">×</button>` : ""}</th>`;
     l.forEach((_, j) => { const p = AUTO.pct[i][j];
       h += `<td style="background:${p === "" ? "" : corDesvio(Number(p)) || "#fff"}"><input type="number" step="1" data-p="${i},${j}" value="${p}" placeholder="—" aria-label="Ajuste em %"><span>%</span></td>`; });
@@ -693,30 +714,31 @@ function desenharTabela(msg) {
   });
   h += `<tr><th class="rh"><button id="add-occ" title="Dividir a última linha em duas">+ linha</button></th></tr></table></div>
    <p class="small mute">O limite de cada faixa de ocupação fica na faixa de cima da tabela (ex.: exatamente 30% cai em 0–30%). A ocupação é a mesma da linha "Ocupação da região" no calendário.</p>
-   <p><button class="prim" id="r-save" ${mudou ? "" : "disabled"}>Salvar tabela</button> ${mudou ? `<button id="r-undo">Descartar mudanças</button>` : ""} <button id="r-padrao" title="Preenche com a tabela de exemplo">Usar tabela de exemplo</button> <span id="r-msg">${msg || (mudou ? `<span class="mute">Há mudanças não salvas.</span>` : "")}</span></p>`;
+   <p><button class="prim" id="r-save" ${mudou ? "" : "disabled"}>Salvar tabela</button> <button id="r-undo" ${mudou ? "" : "hidden"}>Descartar mudanças</button> <button id="r-padrao" title="Preenche com a tabela de exemplo">Usar tabela de exemplo</button> <span id="r-msg">${msg || ""}</span></p>`;
   $("#rg").innerHTML = h;
-  const redesenhar = () => { const a = document.activeElement?.dataset; const key = a && (a.p || a.occ || a.lead); desenharTabela();
-    if (key) { const el = document.querySelector(`[data-p="${a.p}"],[data-occ="${a.occ}"],[data-lead="${a.lead}"]`); el?.focus(); } };
+  // edição ao vivo, sem redesenhar a tabela: redesenhar ao sair do campo trocava o botão Salvar
+  // no meio do clique e o salvamento se perdia.
   document.querySelectorAll("[data-p]").forEach((inp) => {
-    inp.onchange = () => { const [i, j] = inp.dataset.p.split(",").map(Number); AUTO.pct[i][j] = inp.value === "" ? "" : Number(inp.value); redesenhar(); };
-    inp.oninput = () => { const v = inp.value; inp.parentElement.style.background = v === "" ? "" : corDesvio(Number(v)) || "#fff"; };
-    inp.onkeydown = (e) => { // setas andam pela tabela
+    inp.oninput = () => { const [i, j] = inp.dataset.p.split(",").map(Number); const v = inp.value;
+      AUTO.pct[i][j] = v === "" ? "" : Number(v); inp.parentElement.style.background = v === "" ? "" : corDesvio(Number(v)) || "#fff"; estadoSalvar(); };
+    inp.onkeydown = (e) => {
       const [i, j] = inp.dataset.p.split(",").map(Number); const d = { ArrowUp: [-1, 0], ArrowDown: [1, 0], Enter: [1, 0] }[e.key]; if (!d) return;
-      e.preventDefault(); inp.onchange(); document.querySelector(`[data-p="${i + d[0]},${j + d[1]}"]`)?.focus(); };
+      e.preventDefault(); document.querySelector(`[data-p="${i + d[0]},${j + d[1]}"]`)?.focus(); };
   });
-  document.querySelectorAll("[data-occ]").forEach((inp) => (inp.onchange = () => { AUTO.occ[+inp.dataset.occ] = Number(inp.value); redesenhar(); }));
-  document.querySelectorAll("[data-lead]").forEach((inp) => (inp.onchange = () => { AUTO.lead[+inp.dataset.lead] = Math.round(Number(inp.value)); redesenhar(); }));
+  document.querySelectorAll("[data-occ]").forEach((inp) => (inp.oninput = () => { AUTO.occ[+inp.dataset.occ] = Number(inp.value); atualizarRotulos(); estadoSalvar(); }));
+  document.querySelectorAll("[data-lead]").forEach((inp) => (inp.oninput = () => { AUTO.lead[+inp.dataset.lead] = Math.round(Number(inp.value)); atualizarRotulos(); estadoSalvar(); }));
   document.querySelectorAll("[data-docc]").forEach((b) => (b.onclick = () => { const i = +b.dataset.docc; AUTO.occ.splice(i, 1); AUTO.pct.splice(i, 1); AUTO.occ[AUTO.occ.length - 1] = 100; desenharTabela(); }));
   document.querySelectorAll("[data-dlead]").forEach((b) => (b.onclick = () => { const j = +b.dataset.dlead; AUTO.lead.splice(j, 1); AUTO.pct.forEach((r) => r.splice(j, 1)); AUTO.lead[AUTO.lead.length - 1] = null; desenharTabela(); }));
   $("#add-occ").onclick = () => { const n = AUTO.occ.length, ini = occIni(n - 1); if (100 - ini < 2) return; AUTO.occ.splice(n - 1, 0, Math.round((ini + 100) / 2)); AUTO.pct.splice(n - 1, 0, [...AUTO.pct[n - 1]]); desenharTabela(); };
   $("#add-lead").onclick = () => { const n = AUTO.lead.length, ini = leadIni(n - 1); AUTO.lead.splice(n - 1, 0, ini + (ini < 30 ? 14 : 30)); AUTO.pct.forEach((r) => r.splice(n - 1, 0, r[n - 1])); desenharTabela(); };
   $("#r-padrao").onclick = () => { AUTO = AUTO_PADRAO(); desenharTabela(); };
-  if ($("#r-undo")) $("#r-undo").onclick = () => { AUTO = JSON.parse(AUTO_ORIG); desenharTabela(); };
+  if (!msg) estadoSalvar();
+  $("#r-undo").onclick = () => { AUTO = JSON.parse(AUTO_ORIG); apagarRascunho(); desenharTabela(); };
   $("#r-save").onclick = async () => {
     const e = validarTabela(); if (e) return ($("#r-msg").innerHTML = `<span class="msg">${e}</span>`);
     const rules = regrasDaTabela(); if (!rules.length) return ($("#r-msg").innerHTML = `<span class="msg">Preencha pelo menos um quadradinho.</span>`);
     $("#r-save").disabled = true;
-    try { await api("rules_save", { rules }); AUTO = tabelaDeRegras((await api("rules_get")).rules); AUTO_ORIG = JSON.stringify(AUTO); S.grid = null; desenharTabela(`<span class="okmsg">Tabela salva. A sugestão do calendário já usa os novos valores.</span>`); }
+    try { await api("rules_save", { rules }); AUTO = tabelaDeRegras((await api("rules_get")).rules); AUTO_ORIG = JSON.stringify(AUTO); apagarRascunho(); S.grid = null; desenharTabela(`<span class="okmsg">Tabela salva. A sugestão do calendário já usa os novos valores.</span>`); }
     catch (err) { $("#r-msg").innerHTML = `<span class="msg">${esc(err.message)}</span>`; $("#r-save").disabled = false; }
   };
 }
