@@ -193,9 +193,9 @@ function calcular(base, pct, one) {
   return out;
 }
 /* cor pelo desvio do preço atual sobre a base: verde abaixo, neutro na base, laranja acima (limites -25% e +50%) */
-function corDesvio(pct) {
+function corDesvio(pct, teto = 50) {
   if (pct == null || !isFinite(pct) || Math.abs(pct) < 0.5) return "";
-  const t = pct < 0 ? Math.min(1, -pct / 25) : Math.min(1, pct / 50);
+  const t = pct < 0 ? Math.min(1, -pct / 25) : Math.min(1, pct / teto);
   const a = (0.1 + 0.45 * t).toFixed(2);
   return pct < 0 ? `rgba(29,122,70,${a})` : `rgba(242,107,46,${a})`;
 }
@@ -709,7 +709,7 @@ function desenharTabela(msg) {
     h += `<tr><th class="rh"><div class="faixa-lbl"><span data-oi="${i}">${occIni(i)}</span>–${v === 100 ? "100" : `<input type="number" min="1" max="99" step="1" data-occ="${i}" value="${v}" aria-label="Até qual ocupação">`}%</div>
       ${o.length > 1 ? `<button class="x" data-docc="${i}" title="Apagar esta linha">×</button>` : ""}</th>`;
     l.forEach((_, j) => { const p = AUTO.pct[i][j];
-      h += `<td style="background:${p === "" ? "" : corDesvio(Number(p)) || "#fff"}"><input type="number" step="1" data-p="${i},${j}" value="${p}" placeholder="—" aria-label="Ajuste em %"><span>%</span></td>`; });
+      h += `<td style="background:${p === "" ? "" : corDesvio(Number(p), 200) || "#fff"}"><input type="number" step="1" data-p="${i},${j}" value="${p}" placeholder="—" aria-label="Ajuste em %"><span>%</span></td>`; });
     h += `<td></td></tr>`;
   });
   h += `<tr><th class="rh"><button id="add-occ" title="Dividir a última linha em duas">+ linha</button></th></tr></table></div>
@@ -720,7 +720,7 @@ function desenharTabela(msg) {
   // no meio do clique e o salvamento se perdia.
   document.querySelectorAll("[data-p]").forEach((inp) => {
     inp.oninput = () => { const [i, j] = inp.dataset.p.split(",").map(Number); const v = inp.value;
-      AUTO.pct[i][j] = v === "" ? "" : Number(v); inp.parentElement.style.background = v === "" ? "" : corDesvio(Number(v)) || "#fff"; estadoSalvar(); };
+      AUTO.pct[i][j] = v === "" ? "" : Number(v); inp.parentElement.style.background = v === "" ? "" : corDesvio(Number(v), 200) || "#fff"; estadoSalvar(); };
     inp.onkeydown = (e) => {
       const [i, j] = inp.dataset.p.split(",").map(Number); const d = { ArrowUp: [-1, 0], ArrowDown: [1, 0], Enter: [1, 0] }[e.key]; if (!d) return;
       e.preventDefault(); document.querySelector(`[data-p="${i + d[0]},${j + d[1]}"]`)?.focus(); };
