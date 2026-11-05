@@ -58,6 +58,7 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .g tr.fixa .nm{z-index:4}
 .g tr.rit2 td{border-bottom:2px solid var(--line)}
 .g .rit-x{font-size:.66rem;color:var(--mute);font-weight:700;line-height:1}
+.prot{font-size:.62rem;margin-left:2px}
 .rea-m{font-size:.6rem;margin-left:2px;color:var(--navy)}
 .rea-on{display:flex;gap:8px;align-items:center;font-weight:700;margin:6px 0 10px}
 .rea-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px}
@@ -455,7 +456,7 @@ function desenharGrade() {
   for (const d of D) { const p = occ(d), o = G.occ[d]; h += `<td class="o" style="background:${corOcc(p)}" data-tipocc="${d}">${p == null ? "—" : p.toFixed(0) + "%"}<div class="small mute" style="font-weight:600">${o ? o[0] - o[1] + "/" + o[0] : ""}</div></td>`; }
   h += `</tr><tr class="sug"><th class="nm">Sugestão da automação</th>`;
   for (const d of D) { const s = S.sug?.[d]; const mud = s && s.pct != null && s.pct_tabela != null && s.pct !== s.pct_tabela;
-    h += `<td class="o small" title="${esc(tipSug(s))}">${s && s.pct != null ? `<span class="b ${s.pct >= 0 ? "up" : "dn"}">${s.pct > 0 ? "+" : ""}${s.pct}%</span>${mud ? `<span class="rea-m">${s.pct < s.pct_tabela ? "▼" : "▲"}</span>` : ""}` : "<span class='mute'>·</span>"}</td>`; }
+    h += `<td class="o small" title="${esc(tipSug(s))}">${s && s.pct != null ? `<span class="b ${s.pct >= 0 ? "up" : "dn"}">${s.pct > 0 ? "+" : ""}${s.pct}%</span>${mud ? `<span class="rea-m">${s.pct < s.pct_tabela ? "▼" : "▲"}</span>` : ""}` : "<span class='mute'>·</span>"}${s?.protegido ? `<span class="prot" title="Período protegido: ${esc(s.protegido.nome)}">🔒</span>` : ""}</td>`; }
   h += `</tr><tr class="rit1 fixa"><th class="nm">Dias sem reserva <span class="tag">e × o intervalo normal</span></th>`;
   for (const d of D) { const s = S.sug?.[d]; h += `<td class="o small" style="background:${corSemVenda(s)}" title="${esc(tipRecencia(s))}">${s?.sem_venda ?? "—"}${s?.vezes != null ? `<div class="rit-x">${fmtX(s.vezes)}× normal</div>` : ""}</td>`; }
   h += `</tr><tr class="rit2 fixa"><th class="nm">Vendas nos últimos 7 dias <span class="tag">vs. normal</span></th>`;
@@ -1093,12 +1094,18 @@ async function carregarAuto(msg) {
   try { const r = await api("auto_status"); AUTOCFG = r.config; AUTOCFG_ORIG = JSON.stringify(soAuto(AUTOCFG)); AUTO_RUNS = r.runs; desenharAuto(msg); }
   catch (e) { $("#autob").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
 }
-const soAuto = (c) => ({ ligado: c.ligado, modo: c.modo, horarios: c.horarios, horizonte: c.horizonte, passo_max: c.passo_max, min_dif: c.min_dif, trava_manual_dias: c.trava_manual_dias, unidades_min: c.unidades_min, max_diarias_rodada: c.max_diarias_rodada, regioes_excluidas: c.regioes_excluidas });
+const soAuto = (c) => ({ ligado: c.ligado, modo: c.modo, horarios: c.horarios, horizonte: c.horizonte, passo_max: c.passo_max, min_dif: c.min_dif, trava_manual_dias: c.trava_manual_dias, unidades_min: c.unidades_min, max_diarias_rodada: c.max_diarias_rodada, regioes_excluidas: c.regioes_excluidas, protegidos: c.protegidos || [] });
 function desenharAuto(msg) {
   const el = $("#autob"); if (!el) return; const c = AUTOCFG;
   const linha = (id, rot, val, dica, w = 70) => `<label class="au-l"><span>${rot}</span><input id="${id}" type="number" value="${val}" style="width:${w}px"><small>${dica}</small></label>`;
   el.innerHTML = `<div class="au-st ${c.ligado ? "on" : "off"}"><b>${c.ligado ? "● Ligada" : "❚❚ Pausada"}</b> · modo <b>teste</b> (não grava na Stays) · roda às ${c.horarios.map((h) => h + "h").join(" e ")}
      <button id="au-toggle">${c.ligado ? "Pausar automação" : "Ligar automação"}</button><button id="au-agora" class="prim">Rodar teste agora</button><span id="au-prog" class="small"></span></div>
+   <div class="au-prot"><h3 style="margin:12px 0 4px">🔒 Períodos protegidos</h3>
+     <p class="small mute">Nessas datas a automação <b>só sobe</b> o preço (nunca baixa e o freio não age) ou fica <b>fora</b>. Valem para todas as regiões. Ajuste manual continua livre.</p>
+     <table class="t rea-t"><tr><th>Nome</th><th>De</th><th>Até</th><th>Regra</th><th></th></tr>
+     ${(c.protegidos || []).map((p, i) => `<tr><td><input data-pr="${i}" data-k="nome" value="${esc(p.nome)}" style="width:170px"></td><td><input type="date" data-pr="${i}" data-k="de" value="${p.de}" style="width:140px"></td><td><input type="date" data-pr="${i}" data-k="ate" value="${p.ate}" style="width:140px"></td>
+       <td><select data-pr="${i}" data-k="regra"><option value="so_sobe" ${p.regra === "so_sobe" ? "selected" : ""}>só sobe</option><option value="fora" ${p.regra === "fora" ? "selected" : ""}>fora da automação</option></select></td><td><button class="x" data-prdel="${i}" title="Apagar">×</button></td></tr>`).join("")}</table>
+     <p><button id="pr-add">+ período</button> <button class="prim" id="pr-save">Salvar períodos</button> <span id="pr-msg"></span></p></div>
    <details class="au-par"><summary>Parâmetros</summary><div class="au-grid">
      <label class="au-l"><span>Horários</span><input id="au-hor" value="${c.horarios.join(", ")}" style="width:90px"><small>horas cheias, separadas por vírgula</small></label>
      ${linha("au-hz", "Olhar para frente", c.horizonte, "dias a partir de hoje")}
@@ -1118,6 +1125,10 @@ function desenharAuto(msg) {
        <td><button data-run="${r.id}">Ver</button></td></tr>`; }).join("")}</table></div>`
      : `<p class="mute">Nenhuma rodada ainda. A primeira agendada é às ${c.horarios[0]}h; ou clique em <b>Rodar teste agora</b>.</p>`}
    <div id="au-det"></div><p class="small" id="au-msg2">${msg || ""}</p>`;
+  el.querySelectorAll("[data-pr]").forEach((inp) => (inp.onchange = () => { AUTOCFG.protegidos[+inp.dataset.pr][inp.dataset.k] = inp.value; $("#pr-msg").innerHTML = `<span class="mute">Há mudanças não salvas.</span>`; }));
+  el.querySelectorAll("[data-prdel]").forEach((b) => (b.onclick = () => { AUTOCFG.protegidos.splice(+b.dataset.prdel, 1); desenharAuto(`<span class="mute">Período removido — clique em Salvar períodos.</span>`); }));
+  $("#pr-add").onclick = () => { (AUTOCFG.protegidos ||= []).push({ nome: "Novo período", de: hoje(), ate: hoje(), regra: "so_sobe" }); desenharAuto(); };
+  $("#pr-save").onclick = async () => { try { await api("auto_cfg_save", { config: soAuto(AUTOCFG) }); S.grid = null; await carregarAuto(`<span class="okmsg">Períodos protegidos salvos.</span>`); } catch (e) { $("#pr-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; } };
   $("#au-toggle").onclick = async () => { try { await api("auto_cfg_save", { config: { ...soAuto(AUTOCFG), ligado: !AUTOCFG.ligado } }); await carregarAuto(`<span class="okmsg">Automação ${AUTOCFG.ligado ? "pausada" : "ligada"}.</span>`); } catch (e) { alert(e.message); } };
   $("#au-save").onclick = async () => {
     const cfg = { ...soAuto(AUTOCFG), horarios: $("#au-hor").value.split(/[,\s]+/).filter(Boolean), horizonte: $("#au-hz").value, passo_max: $("#au-passo").value, min_dif: $("#au-min").value,
@@ -1137,9 +1148,9 @@ async function verRodada(id, region) {
   const run = AUTO_RUNS.find((r) => r.id === id); const det = $("#au-det"); if (!det || !run) return;
   const pr = (run.resumo?.por_regiao || []).slice().sort((a, b) => (b.itens ?? 0) - (a.itens ?? 0));
   det.innerHTML = `<div class="au-det"><h3>Rodada de ${fmtHora(run.started_at)} — por região</h3>
-    <div class="rtab" style="max-height:260px"><table class="t"><tr><th>Região</th><th>Unidades</th><th>Mudariam</th><th>Sobem</th><th>Descem</th><th>Já certas</th><th>Travadas</th><th>Sem regra</th><th></th></tr>
+    <div class="rtab" style="max-height:260px"><table class="t"><tr><th>Região</th><th>Unidades</th><th>Mudariam</th><th>Sobem</th><th>Descem</th><th>Já certas</th><th>Travadas</th><th>Protegidas</th><th></th></tr>
     ${pr.map((x) => x.pulada || x.erro ? `<tr class="mute"><td>${esc(x.region)}</td><td colspan="7">${esc(x.pulada ? "fora: " + x.pulada : "erro: " + x.erro)}</td><td></td></tr>`
-      : `<tr><td>${esc(x.region)}</td><td>${x.units}</td><td><b>${x.itens}</b></td><td class="up-t">${x.sobem}</td><td class="dn-t">${x.descem}</td><td>${x.ja_certas}</td><td>${x.travadas}</td><td>${x.sem_regra}</td>
+      : `<tr><td>${esc(x.region)}</td><td>${x.units}</td><td><b>${x.itens}</b></td><td class="up-t">${x.sobem}</td><td class="dn-t">${x.descem}</td><td>${x.ja_certas}</td><td>${x.travadas}</td><td>${x.protegidas ?? 0}</td>
         <td>${x.itens ? `<button data-rg-run="${esc(x.region)}">Ver diárias</button>` : ""}</td></tr>`).join("")}</table></div><div id="au-itens"></div></div>`;
   det.querySelectorAll("[data-rg-run]").forEach((b) => (b.onclick = async () => {
     const box = $("#au-itens"); box.innerHTML = "Carregando…";
@@ -1248,7 +1259,8 @@ function telaAjuda() {
       <p>Duas vezes por dia o servidor compara a sugestão de cada noite (próximos <b>90 dias</b>) com o ajuste em vigor e anota o que mudaria. <b>Hoje não grava</b> — só registra.</p></div>
      <div><h4>Sobe aos poucos</h4>
       <div class="aj-steps2"><div style="height:20%"><span>0%</span></div><div style="height:45%"><span>+20%</span></div><div style="height:70%"><span>+40%</span></div><div style="height:85%"><span>+50%</span></div></div>
-      <p class="small mute">Sugestão +50%: no máximo 20 pontos por rodada. Diferença menor que 5 pontos não mexe. Noite ajustada à mão fica de fora por 7 dias.</p></div>
+      <p class="small mute">Sugestão +50%: no máximo 20 pontos por rodada. Diferença menor que 5 pontos não mexe. Noite ajustada à mão fica de fora por 7 dias.</p>
+      <h4>🔒 Períodos protegidos</h4><p class="small">Natal/Réveillon, janeiro, Carnaval e Semana Santa: a automação <b>só sobe</b> (nunca baixa, sem freio). Na grade aparece 🔒 na linha da sugestão.</p></div>
     </div>
     ${onde("Automação → Rodadas automáticas → Ver (por região e diária a diária)", "Automação → Rodadas automáticas → Parâmetros · botão Pausar")}
    </section>
