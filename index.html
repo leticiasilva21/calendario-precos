@@ -33,8 +33,18 @@ select,input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-ra
 .faixa{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .faixa label{display:flex;gap:6px;align-items:center;font-weight:600;color:var(--mute)}
 .dows{display:flex;gap:3px}
-.dows button{padding:3px 8px;font-size:.8rem;border-color:var(--line);color:var(--mute)}
-.dows button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.dows button{padding:3px 8px;font-size:.8rem;border:1px dashed #b8bfcc;background:#fff;color:#9aa1ae;text-decoration:line-through}
+.dows button.on{background:var(--navy);border:1px solid var(--navy);color:#fff;text-decoration:none}
+.dows button:not(.on):hover{background:var(--panel)}
+.selo{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:700;border-radius:999px;padding:2px 10px}
+.selo::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.selo.verde{background:var(--ok-soft);color:var(--ok)}.selo.amarelo{background:var(--warn-soft);color:#8a6100}.selo.vermelho{background:var(--bad-soft);color:var(--bad)}
+.legenda{margin:10px 16px 0;font-size:.8rem;color:var(--mute)}
+.legenda summary{cursor:pointer;font-weight:700;color:var(--navy);width:max-content}
+.legenda .itens{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;padding:8px 0 2px}
+.legenda .it{display:flex;align-items:center;gap:6px}
+.legenda .sw{display:inline-block;width:22px;height:14px;border-radius:3px;border:1px solid var(--line)}
+.legenda .escala{display:inline-block;width:120px;height:14px;border-radius:3px;border:1px solid var(--line);background:linear-gradient(90deg,rgba(29,122,70,.55),#fff 33%,rgba(242,107,46,.55))}
 .mute{color:var(--mute)}.small{font-size:.82rem}
 .wrap{padding:16px}
 /* grade */
@@ -57,6 +67,7 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .g td.c .sg s{color:var(--mute);font-weight:600}.g td.c .sg b{color:var(--navy)}
 .g td.c.sel{box-shadow:inset 0 0 0 2px var(--orange)}
 .g td.c .p{font-weight:700;display:block}
+.sg s{color:var(--mute);font-weight:600}
 .g td.c .b{font-size:.66rem;display:inline-block;border-radius:4px;padding:0 3px;margin:0 1px;font-weight:700}
 .b.up{background:var(--ok-soft);color:var(--ok)}.b.dn{background:var(--bad-soft);color:var(--bad)}.b.n1{background:var(--warn-soft);color:#8a6100}
 .b.av{color:var(--mute);font-weight:600}
@@ -226,7 +237,7 @@ function faixaFiltros() {
    <label>Região <select id="f-reg"><option value="">Escolha…</option>${S.regions.map((r) => `<option ${r.name === S.region ? "selected" : ""} value="${esc(r.name)}">${esc(r.name)} (${r.n})</option>`).join("")}</select></label>
    <label>De <input type="date" id="f-from" value="${S.from}" min="${hoje()}"></label>
    <label>Até <input type="date" id="f-to" value="${S.to}" min="${hoje()}"></label>
-   <span class="dows" title="Dias da semana usados na seleção">${[1, 2, 3, 4, 5, 6, 0].map((d) => `<button data-dow="${d}" class="${S.dows.has(d) ? "on" : ""}">${DOW[d]}</button>`).join("")}</span>
+   <span class="dows" title="Dias da semana usados na seleção">${[1, 2, 3, 4, 5, 6, 0].map((d) => `<button data-dow="${d}" aria-pressed="${S.dows.has(d)}" class="${S.dows.has(d) ? "on" : ""}" title="${S.dows.has(d) ? "Ligado: entra na seleção" : "Desligado: fora da seleção"}">${DOW[d]}</button>`).join("")}</span>
    <button class="prim" id="f-load">Carregar</button>
    <button id="f-refresh" title="Relê preços e disponibilidade da Stays para a região agora">Atualizar da Stays</button>
    <input id="f-busca" placeholder="Filtrar imóvel…" value="${esc(S.busca)}" style="flex:0 1 200px">
@@ -240,7 +251,7 @@ function telaCal() {
   $("#f-to").onchange = (e) => (S.to = e.target.value);
   document.querySelectorAll("[data-dow]").forEach((b) => (b.onclick = () => {
     const d = +b.dataset.dow; S.dows.has(d) ? S.dows.delete(d) : S.dows.add(d);
-    localStorage.setItem("cp-dows", JSON.stringify([...S.dows])); b.classList.toggle("on");
+    localStorage.setItem("cp-dows", JSON.stringify([...S.dows])); const on = b.classList.toggle("on"); b.setAttribute("aria-pressed", on); b.title = on ? "Ligado: entra na seleção" : "Desligado: fora da seleção";
     if (S.grid) { selecionarDatasPelosDias(); desenharGrade(); }
   }));
   $("#f-busca").oninput = (e) => { S.busca = e.target.value; if (S.grid) desenharGrade(); };
@@ -266,9 +277,27 @@ async function carregarGrade() {
     S.grid = g; S.sug = Object.fromEntries((s.dias || []).map((x) => [x.date, x]));
     S.selL = new Set((g.listings || []).filter((l) => !l.is_margem).map((l) => l.id));
     selecionarDatasPelosDias();
-    $("#f-info").textContent = g.synced_at ? `Dados da Stays de ${fmtHora(g.synced_at)} (mais antigo)` : "Ainda sem dados da Stays para essa região — clique em Atualizar da Stays.";
+    $("#f-info").innerHTML = seloIdade(g.synced_at);
     desenharGrade();
   } catch (err) { $("#gridarea").innerHTML = `<p class="wrap msg">${esc(err.message)}</p>`; }
+}
+function seloIdade(iso) {
+  if (!iso) return `<span class="selo vermelho">Sem dados da Stays — clique em Atualizar da Stays</span>`;
+  const min = Math.max(0, (Date.now() - new Date(iso).getTime()) / 60000);
+  const txt = min < 60 ? `${Math.round(min)} min` : min < 48 * 60 ? `${Math.round(min / 60)} h` : `${Math.round(min / 1440)} dias`;
+  const cls = min <= 120 ? "verde" : min <= 1440 ? "amarelo" : "vermelho";
+  return `<span class="selo ${cls}" title="Anúncio com a leitura mais antiga da Stays nesta tela: ${fmtHora(iso)}">Dados de ${txt} atrás</span>`;
+}
+function legenda() {
+  let aberta = true; try { aberta = localStorage.getItem("cp-legenda") !== "0"; } catch {}
+  return `<details class="legenda" id="legenda" ${aberta ? "open" : ""}><summary>Legenda</summary><div class="itens">
+   <span class="it"><span class="escala"></span>Cor da célula: preço atual vs. diária base (verde abaixo até −25%, branco na base, laranja acima até +50%)</span>
+   <span class="it"><span class="sw" style="background:var(--occ)"></span>Reservado / sem unidade livre</span>
+   <span class="it"><span class="sw" style="background:repeating-linear-gradient(135deg,#eef0f4 0 4px,#d9dde5 4px 6px)"></span>Bloqueado</span>
+   <span class="it"><b style="color:var(--ink)">2/8</b> unidades livres ÷ total do grupo (na ocupação: ocupadas ÷ em operação)</span>
+   <span class="it"><span class="sw" style="background:var(--orange)"></span>Data selecionada (cabeçalho laranja)</span>
+   <span class="it"><span class="sg"><s>R$ 219</s> <b style="color:var(--ink)">R$ 197</b></span> preço atual → sugestão da automação</span>
+   <span class="it"><span class="b up">+10%</span><span class="b n1">1N</span> ajuste gravado · 1 noite liberada</span></div></details>`;
 }
 function corOcc(p) {
   if (p == null) return "#fff";
@@ -281,7 +310,7 @@ function listaVisivel() {
 function desenharGrade() {
   const G = S.grid, D = datas(), L = listaVisivel();
   const occ = (d) => { const o = G.occ[d]; return o && o[0] ? Math.round(1000 * (1 - o[1] / o[0])) / 10 : null; };
-  let h = `<div class="gridbox"><table class="g"><thead><tr><th class="nm"><input type="checkbox" id="all" ${L.every((l) => S.selL.has(l.id)) ? "checked" : ""}> ${L.length} anúncios</th>`;
+  let h = legenda() + `<div class="gridbox"><table class="g"><thead><tr><th class="nm"><input type="checkbox" id="all" ${L.every((l) => S.selL.has(l.id)) ? "checked" : ""}> ${L.length} anúncios</th>`;
   for (const d of D) { const w = dowOf(d); h += `<th class="dh ${w === 0 || w === 6 ? "we" : ""} ${S.selD.has(d) ? "sel" : ""}" data-d="${d}">${fmtD(d)}<small>${DOW[w]}</small></th>`; }
   h += `</tr></thead><tbody><tr class="occ"><th class="nm">Ocupação da região <span class="tag">ocupadas ÷ em operação</span></th>`;
   for (const d of D) { const p = occ(d), o = G.occ[d]; h += `<td class="o" style="background:${corOcc(p)}" data-tipocc="${d}">${p == null ? "—" : p.toFixed(0) + "%"}<div class="small mute" style="font-weight:600">${o ? o[0] - o[1] + "/" + o[0] : ""}</div></td>`; }
@@ -327,6 +356,7 @@ function painelAcao() {
    <span id="a-msg" class="small"></span></div>`;
 }
 function ligarGrade() {
+  $("#legenda").ontoggle = (e) => { try { localStorage.setItem("cp-legenda", e.target.open ? "1" : "0"); } catch {} };
   $("#all").onchange = (e) => { for (const l of listaVisivel()) e.target.checked ? S.selL.add(l.id) : S.selL.delete(l.id); desenharGrade(); };
   document.querySelectorAll("[data-l]").forEach((c) => (c.onchange = () => { c.checked ? S.selL.add(c.dataset.l) : S.selL.delete(c.dataset.l); desenharGrade(); }));
   document.querySelectorAll("th.dh").forEach((th) => (th.onclick = () => { const d = th.dataset.d; if (d < hoje()) return; S.selD.has(d) ? S.selD.delete(d) : S.selD.add(d); desenharGrade(); }));
