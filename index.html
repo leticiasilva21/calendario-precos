@@ -728,7 +728,9 @@ async function telaAuto() {
   ligarCab();
   try {
     AG = await api("auto_get");
-    if (!ESC) { const r = AG.regioes.find((x) => x.name === S.region); ESC = r?.tabela_propria ? { region: r.name } : { grupo_id: r?.grupo_id ?? AG.grupos[0]?.id }; }
+    if (!ESC) { // abre na região do calendário; sem região escolhida, na primeira com tabela própria
+      const r = AG.regioes.find((x) => x.name === S.region) || AG.regioes.find((x) => x.tabela_propria);
+      ESC = r?.tabela_propria ? { region: r.name } : { grupo_id: r?.grupo_id ?? AG.grupos[0]?.id }; }
     REA = AG.reacao; REA_ORIG = JSON.stringify(soReacao(REA));
     desenharEscopo(); desenharRegioes(); desenharReacao();
     await carregarEscopo();
@@ -738,15 +740,20 @@ function desenharEscopo() {
   const sel = $("#esc-sel"); if (!sel) return;
   const n = (g) => AG.regioes.filter((r) => r.grupo_id === g.id && !r.tabela_propria).length;
   const proprias = AG.regioes.filter((r) => r.tabela_propria);
-  sel.innerHTML = AG.grupos.map((g) => `<option value="g:${g.id}">grupo ${esc(g.nome)} (${n(g)} ${n(g) === 1 ? "região" : "regiões"})</option>`).join("")
-    + (proprias.length ? `<optgroup label="Tabelas próprias">${proprias.map((r) => `<option value="r:${esc(r.name)}">${esc(r.name)}</option>`).join("")}</optgroup>` : "");
+  sel.innerHTML = (proprias.length ? `<optgroup label="Tabelas próprias das regiões">${proprias.map((r) => `<option value="r:${esc(r.name)}">${esc(r.name)} (${esc(AG.grupos.find((g) => g.id === r.grupo_id)?.nome || "")})</option>`).join("")}</optgroup>` : "")
+    + `<optgroup label="Tabelas dos grupos">${AG.grupos.map((g) => `<option value="g:${g.id}">grupo ${esc(g.nome)} (${n(g)} ${n(g) === 1 ? "região usa" : "regiões usam"})</option>`).join("")}</optgroup>`;
   sel.value = escKey();
   sel.onchange = async () => {
     if (JSON.stringify(AUTO) !== AUTO_ORIG && !confirm("Há mudanças não salvas nesta tabela (ficam guardadas como rascunho). Trocar mesmo?")) { sel.value = escKey(); return; }
     const v = sel.value; ESC = v.startsWith("r:") ? { region: v.slice(2) } : { grupo_id: Number(v.slice(2)) }; await carregarEscopo();
   };
   const info = $("#esc-info");
-  if (info) info.textContent = ESC.region ? "Só esta região usa esta tabela." : `Regiões: ${AG.regioes.filter((r) => r.grupo_id === ESC.grupo_id && !r.tabela_propria).map((r) => r.name).join(", ") || "nenhuma"}.`;
+  if (info) {
+    const usam = AG.regioes.filter((r) => r.grupo_id === ESC.grupo_id && !r.tabela_propria).map((r) => r.name);
+    info.innerHTML = ESC.region ? "Só esta região usa esta tabela."
+      : usam.length ? `Usada por: ${esc(usam.join(", "))}.`
+      : `<span class="aviso" style="display:inline-block;margin:0">Nenhuma região usa esta tabela agora: todas do grupo têm tabela própria. Ela vale para regiões novas do grupo ou se você desmarcar "Tabela própria" de alguma.</span>`;
+  }
 }
 async function carregarEscopo() {
   $("#rg").innerHTML = "Carregando…";
