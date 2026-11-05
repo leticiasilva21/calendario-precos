@@ -65,6 +65,11 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .rea-t{width:auto;margin:6px 0}.rea-t input{width:64px}
 .cp-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 14px;max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px}
 .cp-lista label{display:flex;gap:6px;align-items:center;font-size:.85rem}
+.au-st{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 12px;border-radius:8px;background:var(--panel)}.au-st.on b:first-child{color:var(--ok)}.au-st.off b:first-child{color:var(--bad)}
+.au-par{margin:10px 0}.au-par summary{cursor:pointer;font-weight:700;color:var(--navy)}
+.au-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px 18px;margin-top:8px}
+.au-l{display:grid;gap:2px}.au-l span{font-weight:700;font-size:.85rem}.au-l small{color:var(--mute);font-size:.75rem}
+.au-det{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:10px}
 .massa{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 8px}.massa button{padding:3px 10px;font-size:.8rem}.massa .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
 tr.rsel td{background:var(--orange-soft)}
 .rea-nmin{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.rea-nmin label{font-weight:700}
@@ -732,7 +737,10 @@ async function telaAuto() {
    <div id="regs">Carregando…</div>
    <h2 style="margin-top:28px">Reação às vendas</h2>
    <p class="mute">Ajusta a sugestão da tabela conforme a <b>recência</b> (dias sem reserva para aquela noite, comparados ao intervalo normal da região) e o <b>ritmo</b> de vendas (reservas da última semana vs. o normal). O freio recua quando não vende e a aceleração avança quando vende rápido. Os números aparecem na grade do calendário, nas linhas abaixo da sugestão.</p>
-   <div id="rea">Carregando…</div></div>`;
+   <div id="rea">Carregando…</div>
+   <h2 style="margin-top:28px" id="auto-titulo">Rodadas automáticas</h2>
+   <p class="mute">Nos horários escolhidos, o servidor calcula a sugestão de todas as regiões e compara com o ajuste que está valendo em cada noite. Em <b>modo teste</b> ele só <b>registra o que faria</b> — nada é gravado na Stays. Use as rodadas abaixo para conferir antes de liberar a gravação.</p>
+   <div id="autob">Carregando…</div></div>`;
   ligarCab();
   try {
     AG = await api("auto_get");
@@ -740,7 +748,7 @@ async function telaAuto() {
       const r = AG.regioes.find((x) => x.name === S.region) || AG.regioes.find((x) => x.tabela_propria);
       ESC = r?.tabela_propria ? { region: r.name } : { grupo_id: r?.grupo_id ?? AG.grupos[0]?.id }; }
     REA = AG.reacao; REA_ORIG = JSON.stringify(soReacao(REA));
-    desenharEscopo(); desenharRegioes(); desenharReacao();
+    desenharEscopo(); desenharRegioes(); desenharReacao(); carregarAuto();
     await carregarEscopo();
   } catch (e) { $("#rg").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
 }
@@ -1028,6 +1036,70 @@ function tipRitmo(s) {
   return `${s.res_7d} reserva${s.res_7d === 1 ? "" : "s"} feita${s.res_7d === 1 ? "" : "s"} nos últimos 7 dias para esta noite | Normal nessa antecedência: ${fmtX(s.normal_7d)} por semana` + (s.ritmo == null ? " | Pouco histórico para comparar" : ` | Ritmo: ${fmtX(s.ritmo)}× o normal`);
 }
 
+/* ---------- rodadas automáticas (modo teste) ---------- */
+let AUTOCFG = null, AUTOCFG_ORIG = "", AUTO_RUNS = [];
+async function carregarAuto(msg) {
+  try { const r = await api("auto_status"); AUTOCFG = r.config; AUTOCFG_ORIG = JSON.stringify(soAuto(AUTOCFG)); AUTO_RUNS = r.runs; desenharAuto(msg); }
+  catch (e) { $("#autob").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
+}
+const soAuto = (c) => ({ ligado: c.ligado, modo: c.modo, horarios: c.horarios, horizonte: c.horizonte, passo_max: c.passo_max, min_dif: c.min_dif, trava_manual_dias: c.trava_manual_dias, unidades_min: c.unidades_min, max_diarias_rodada: c.max_diarias_rodada, regioes_excluidas: c.regioes_excluidas });
+function desenharAuto(msg) {
+  const el = $("#autob"); if (!el) return; const c = AUTOCFG;
+  const linha = (id, rot, val, dica, w = 70) => `<label class="au-l"><span>${rot}</span><input id="${id}" type="number" value="${val}" style="width:${w}px"><small>${dica}</small></label>`;
+  el.innerHTML = `<div class="au-st ${c.ligado ? "on" : "off"}"><b>${c.ligado ? "● Ligada" : "❚❚ Pausada"}</b> · modo <b>teste</b> (não grava na Stays) · roda às ${c.horarios.map((h) => h + "h").join(" e ")}
+     <button id="au-toggle">${c.ligado ? "Pausar automação" : "Ligar automação"}</button><button id="au-agora" class="prim">Rodar teste agora</button><span id="au-prog" class="small"></span></div>
+   <details class="au-par"><summary>Parâmetros</summary><div class="au-grid">
+     <label class="au-l"><span>Horários</span><input id="au-hor" value="${c.horarios.join(", ")}" style="width:90px"><small>horas cheias, separadas por vírgula</small></label>
+     ${linha("au-hz", "Olhar para frente", c.horizonte, "dias a partir de hoje")}
+     ${linha("au-passo", "Passo máximo", c.passo_max, "pontos de % por rodada (sobe/desce aos poucos)")}
+     ${linha("au-min", "Diferença mínima", c.min_dif, "pontos: abaixo disso não mexe")}
+     ${linha("au-trava", "Trava do ajuste manual", c.trava_manual_dias, "dias em que a noite ajustada à mão fica fora")}
+     ${linha("au-uni", "Unidades mínimas", c.unidades_min, "regiões menores ficam de fora")}
+     ${linha("au-max", "Limite por rodada", c.max_diarias_rodada, "diárias: se passar, a rodada para e avisa", 90)}
+     <label class="au-l" style="grid-column:1/-1"><span>Regiões fora da automação</span><select id="au-exc" multiple size="5" style="min-width:320px">${(AG?.regioes || []).map((r) => `<option ${c.regioes_excluidas.includes(r.name) ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select><small>Cmd/Ctrl + clique para marcar várias</small></label>
+     </div><p><button class="prim" id="au-save">Salvar parâmetros</button> <span id="au-msg"></span></p></details>
+   <h3 style="margin:14px 0 6px">Últimas rodadas</h3>
+   ${AUTO_RUNS.length ? `<div class="rtab"><table class="t"><tr><th>Quando</th><th>Status</th><th>Regiões</th><th>Diárias que mudariam</th><th>Sobem</th><th>Descem</th><th>Travadas (manual)</th><th></th></tr>
+     ${AUTO_RUNS.map((r) => { const z = r.resumo || {}; const feitas = (z.por_regiao || []).length;
+       return `<tr><td>${fmtHora(r.started_at)}<div class="small mute">${esc(r.slot.startsWith("manual") ? "manual" : "agendada")}</div></td><td>${r.status === "rodando" ? `rodando (${r.cursor} regiões feitas)` : r.status === "ok" ? "concluída" : esc(r.status)}${z.parada ? `<div class="small msg">${esc(z.parada)}</div>` : ""}</td>
+       <td>${feitas}${z.puladas ? `<div class="small mute">${z.puladas} fora (poucas unidades)</div>` : ""}${z.erros ? `<div class="small msg">${z.erros} com erro</div>` : ""}</td>
+       <td><b>${(z.itens ?? 0).toLocaleString("pt-BR")}</b></td><td class="up-t">${(z.sobem ?? 0).toLocaleString("pt-BR")}</td><td class="dn-t">${(z.descem ?? 0).toLocaleString("pt-BR")}</td><td>${(z.travadas ?? 0).toLocaleString("pt-BR")}</td>
+       <td><button data-run="${r.id}">Ver</button></td></tr>`; }).join("")}</table></div>`
+     : `<p class="mute">Nenhuma rodada ainda. A primeira agendada é às ${c.horarios[0]}h; ou clique em <b>Rodar teste agora</b>.</p>`}
+   <div id="au-det"></div><p class="small" id="au-msg2">${msg || ""}</p>`;
+  $("#au-toggle").onclick = async () => { try { await api("auto_cfg_save", { config: { ...soAuto(AUTOCFG), ligado: !AUTOCFG.ligado } }); await carregarAuto(`<span class="okmsg">Automação ${AUTOCFG.ligado ? "pausada" : "ligada"}.</span>`); } catch (e) { alert(e.message); } };
+  $("#au-save").onclick = async () => {
+    const cfg = { ...soAuto(AUTOCFG), horarios: $("#au-hor").value.split(/[,\s]+/).filter(Boolean), horizonte: $("#au-hz").value, passo_max: $("#au-passo").value, min_dif: $("#au-min").value,
+      trava_manual_dias: $("#au-trava").value, unidades_min: $("#au-uni").value, max_diarias_rodada: $("#au-max").value, regioes_excluidas: [...$("#au-exc").selectedOptions].map((o) => o.value) };
+    try { await api("auto_cfg_save", { config: cfg }); await carregarAuto(`<span class="okmsg">Parâmetros salvos.</span>`); } catch (e) { $("#au-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; }
+  };
+  $("#au-agora").onclick = async () => {
+    const b = $("#au-agora"); b.disabled = true;
+    try { const r = await api("auto_start"); let st;
+      do { $("#au-prog").textContent = `Calculando… ${st?.feitas ?? 0} de ${r.total} regiões`; st = await api("auto_tick", { run_id: r.run_id }); } while (st.status === "rodando");
+      await carregarAuto(`<span class="okmsg">Rodada de teste concluída: ${(st.resumo?.itens ?? 0).toLocaleString("pt-BR")} diárias mudariam. Nada foi gravado na Stays.</span>`); verRodada(r.run_id);
+    } catch (e) { $("#au-prog").innerHTML = `<span class="msg">${esc(e.message)}</span>`; b.disabled = false; }
+  };
+  el.querySelectorAll("[data-run]").forEach((b) => (b.onclick = () => verRodada(Number(b.dataset.run))));
+}
+async function verRodada(id, region) {
+  const run = AUTO_RUNS.find((r) => r.id === id); const det = $("#au-det"); if (!det || !run) return;
+  const pr = (run.resumo?.por_regiao || []).slice().sort((a, b) => (b.itens ?? 0) - (a.itens ?? 0));
+  det.innerHTML = `<div class="au-det"><h3>Rodada de ${fmtHora(run.started_at)} — por região</h3>
+    <div class="rtab" style="max-height:260px"><table class="t"><tr><th>Região</th><th>Unidades</th><th>Mudariam</th><th>Sobem</th><th>Descem</th><th>Já certas</th><th>Travadas</th><th>Sem regra</th><th></th></tr>
+    ${pr.map((x) => x.pulada || x.erro ? `<tr class="mute"><td>${esc(x.region)}</td><td colspan="7">${esc(x.pulada ? "fora: " + x.pulada : "erro: " + x.erro)}</td><td></td></tr>`
+      : `<tr><td>${esc(x.region)}</td><td>${x.units}</td><td><b>${x.itens}</b></td><td class="up-t">${x.sobem}</td><td class="dn-t">${x.descem}</td><td>${x.ja_certas}</td><td>${x.travadas}</td><td>${x.sem_regra}</td>
+        <td>${x.itens ? `<button data-rg-run="${esc(x.region)}">Ver diárias</button>` : ""}</td></tr>`).join("")}</table></div><div id="au-itens"></div></div>`;
+  det.querySelectorAll("[data-rg-run]").forEach((b) => (b.onclick = async () => {
+    const box = $("#au-itens"); box.innerHTML = "Carregando…";
+    try { const { itens } = await api("auto_itens", { run_id: id, region: b.dataset.rgRun, limit: 1500 });
+      box.innerHTML = `<h3 style="margin-top:12px">${esc(b.dataset.rgRun)} — ${itens.length} diárias</h3><div class="rtab" style="max-height:360px"><table class="t"><tr><th>Anúncio</th><th>Data</th><th>Ajuste atual</th><th>Sugestão</th><th>Iria para</th><th>Por quê</th></tr>
+        ${itens.map((i) => `<tr><td>${esc(nomeCurto(i.sell_nome || ""))}</td><td>${fmtD(i.date)}</td><td>${sinal(Number(i.pct_atual))}%</td><td>${sinal(Number(i.pct_sugerido))}%</td><td class="${Number(i.pct_novo) > Number(i.pct_atual) ? "up-t" : "dn-t"}"><b>${sinal(Number(i.pct_novo))}%</b></td><td class="small mute">${esc(i.motivo || "")}</td></tr>`).join("")}</table></div>`; }
+    catch (e) { box.innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
+  }));
+  det.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 /* ---------- histórico ---------- */
 async function telaLog() {
   $("#app").innerHTML = cabecalho() + `<div class="faixa"><label>Região <select id="lg-reg"><option value="">Todas</option>${S.regions.map((r) => `<option>${esc(r.name)}</option>`).join("")}</select></label>
@@ -1058,7 +1130,7 @@ function previaDesfazer(batch) {
       catch (e) { $("#m-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; ok.disabled = false; ok.textContent = "Tentar de novo"; }
     });
 }
-const NOMES_OP = { pct: "Ajuste %", one_night_on: "Liberou 1 noite", one_night_off: "Tirou 1 noite", reset: "Voltou à base", rebase: "Redefiniu base", desfazer: "Desfez", regras: "Alterou regras", base_stays: "Base atualizada (mudança feita direto na Stays)", reacao: "Alterou a reação às vendas" };
+const NOMES_OP = { pct: "Ajuste %", one_night_on: "Liberou 1 noite", one_night_off: "Tirou 1 noite", reset: "Voltou à base", rebase: "Redefiniu base", desfazer: "Desfez", regras: "Alterou regras", base_stays: "Base atualizada (mudança feita direto na Stays)", reacao: "Alterou a reação às vendas", automacao_cfg: "Automação automática", base_oficial: "Base oficial definida", regiao_cfg: "Região: grupo/tabela própria", grupo_cfg: "Grupo de regiões" };
 async function carregarLog() {
   try {
     const { rows } = await api("log", { region: $("#lg-reg").value || undefined, user: $("#lg-user").value.trim() || undefined, limit: 1000 });
