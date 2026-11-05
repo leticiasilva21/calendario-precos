@@ -76,6 +76,8 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .aj-s h3{margin:0 0 6px;font-size:1rem;color:var(--navy)}
 .aj-s ul{margin:0;padding-left:18px}.aj-s li{margin:4px 0;line-height:1.45}
 .aj-dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;margin:0}.aj-dl dt{font-weight:700}.aj-dl dd{margin:0;color:var(--mute)}
+.pa-guia{margin:12px 14px 0;padding:10px 12px;background:var(--orange-soft);border-radius:8px;font-size:.82rem;line-height:1.4}
+.pa-guia ol{margin:6px 0 0;padding-left:18px}.pa-guia li{margin:3px 0}
 .massa{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 8px}.massa button{padding:3px 10px;font-size:.8rem}.massa .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
 tr.rsel td{background:var(--orange-soft)}
 .rea-nmin{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.rea-nmin label{font-weight:700}
@@ -87,14 +89,14 @@ tr.rsel td{background:var(--orange-soft)}
 .g .dh{min-width:54px;padding:3px 2px;text-align:center;cursor:pointer;font-weight:600;line-height:1.15}
 .g .dh small{display:block;color:var(--mute);font-weight:600;font-size:.7rem}
 .g .dh.we{background:#f3f4f8}
-.g .dh.sel{background:var(--orange);color:#fff}.g .dh.sel small{color:#fff}
+.g .dh.sel{background:var(--orange-soft);color:var(--ink);box-shadow:inset 0 -3px 0 var(--orange)}.g .dh.sel small{color:var(--orange)}
 .g td.c{text-align:center;padding:3px 2px;height:34px;position:relative;cursor:pointer;font-variant-numeric:tabular-nums}
 .g td.c.full{background:var(--occ)!important;color:#8a91a0}
 .g td.c.blk{background:repeating-linear-gradient(135deg,#eef0f4 0 5px,#d9dde5 5px 7px)!important;color:#8a91a0}
 .g td.c .sg{display:block;font-size:.68rem;line-height:1.1;white-space:nowrap}
 .g td.c .sg s{color:var(--mute);font-weight:600}.g td.c .sg b{color:var(--navy)}
-.g td.c.sel{box-shadow:inset 0 0 0 2px var(--orange)}
-.g.temsel td.c:not(.sel){opacity:.42}
+.g td.c.sel{box-shadow:inset 0 0 0 1.5px rgba(242,107,46,.75)}
+.g.temsel td.c:not(.sel){opacity:.72}
 .g td.c{user-select:none}
 .up-t{color:#b4501f}.dn-t{color:var(--ok)}
 .modal{position:fixed;inset:0;background:rgba(22,41,79,.35);z-index:30;display:grid;place-items:center;padding:16px}
@@ -334,7 +336,7 @@ function telaCal() {
   document.querySelectorAll("[data-dow]").forEach((b) => (b.onclick = () => {
     const d = +b.dataset.dow; S.dows.has(d) ? S.dows.delete(d) : S.dows.add(d);
     localStorage.setItem("cp-dows", JSON.stringify([...S.dows])); const on = b.classList.toggle("on"); b.setAttribute("aria-pressed", on); b.title = on ? "Ligado: entra na seleção" : "Desligado: fora da seleção";
-    if (S.grid) { selecionarDatasPelosDias(); desenharGrade(); }
+    if (S.grid && S.selD.size) { selecionarDatasPelosDias(); desenharGrade(); }
   }));
   $("#f-busca").oninput = (e) => { S.busca = e.target.value; if (S.grid) desenharGrade(); };
   $("#f-refresh").onclick = async (e) => {
@@ -359,8 +361,7 @@ async function carregarGrade() {
     if (seq !== S.loadSeq) return;
     S.prefixo = detectarPrefixo((g.listings || []).map((l) => l.nome));
     S.grid = g; S.gridVer = (S.gridVer || 0) + 1; S.prev = null; S.sug = Object.fromEntries((s.dias || []).map((x) => [x.date, x]));
-    S.selL = new Set((g.listings || []).filter((l) => !l.is_margem).map((l) => l.id));
-    selecionarDatasPelosDias();
+    S.selL = new Set(); S.selD = new Set(); // abre sem seleção: o painel orienta como selecionar
     $("#f-info").innerHTML = seloIdade(g.synced_at);
     desenharGrade();
   } catch (err) { if (seq === S.loadSeq) $("#gridarea").innerHTML = `<p class="wrap msg">${esc(err.message)}</p>`; }
@@ -394,7 +395,7 @@ function legenda() {
    <span class="it"><span class="sw" style="background:var(--occ)"></span>Reservado / sem unidade livre</span>
    <span class="it"><span class="sw" style="background:repeating-linear-gradient(135deg,#eef0f4 0 4px,#d9dde5 4px 6px)"></span>Bloqueado ou manutenção (sem reserva no dia)</span>
    <span class="it"><b style="color:var(--ink)">2 livres</b> unidades livres no dia, em anúncios que são grupo de unidades · na linha de ocupação, <b style="color:var(--ink)">51/92</b> = ocupadas ÷ em operação</span>
-   <span class="it"><span class="sw" style="background:var(--orange)"></span>Data selecionada (cabeçalho laranja)</span>
+   <span class="it"><span class="sw" style="background:var(--orange-soft);box-shadow:inset 0 -3px 0 var(--orange)"></span>Data selecionada (cabeçalho com faixa laranja)</span>
    <span class="it"><span class="sg"><s>219</s> <b style="color:var(--ink)">197</b></span> preço atual (riscado) → sugestão da automação</span>
    <span class="it"><span class="b up">+50%</span><span class="rea-m">▼</span> sugestão freada (▼) ou acelerada (▲) pelas vendas · passe o mouse para ver o motivo</span>
    ${S.prefixo ? `<span class="it">Nomes sem o prefixo comum da região: <b style="color:var(--ink)">${esc(S.prefixo)}</b></span>` : ""}
@@ -463,11 +464,16 @@ function painelConteudo() {
   const sugTxt = !sugs.length ? "sem regra nas datas" : sMin === sMax ? `${sinal(sMin)}%` : `${sinal(sMin)}% a ${sinal(sMax)}%`;
   const vazio = !n || !m;
   const linha = (op, nome, campo, dica) => `<div class="pa-l"><div><b>${nome}</b>${dica ? `<small>${dica}</small>` : ""}</div>${campo || ""}<button class="prim ir" data-op="${op}" ${vazio ? "disabled" : ""} title="Abre o resumo antes → depois para confirmar">→</button></div>`;
-  return `<div class="pa-sel"><div class="pa-t">Seleção</div>
+  const guia = vazio ? `<div class="pa-guia"><b>Para um ajuste manual:</b><ol>
+     <li>No topo, escolha o <b>período</b> (De / Até) e os <b>dias da semana</b>.</li>
+     <li>Clique em <b>Selecionar datas</b> abaixo — ou clique nos dias no cabeçalho, ou arraste na grade.</li>
+     <li>Marque os <b>imóveis</b> (caixinhas à esquerda) ou clique em <b>Todos os imóveis</b>.</li>
+     <li>Escolha a ação e clique em <b>→</b> para ver a prévia antes de gravar.</li></ol></div>` : "";
+  return guia + `<div class="pa-sel"><div class="pa-t">Seleção</div>
      <div class="pa-n">${n} anúncio${n === 1 ? "" : "s"} × ${m} data${m === 1 ? "" : "s"}</div>
      <div class="pa-k"><span>diária média hoje</span><b>${qt ? brl(soma / qt) : "—"}</b></div>
      <div class="pa-k"><span>ocupação média da região</span><b>${occM == null ? "—" : Math.round(occM) + "%"}</b></div>
-     <div class="pa-b"><button id="p-tudo">Selecionar tudo</button><button id="p-limpa" ${vazio ? "disabled" : ""}>Limpar</button></div></div>
+     <div class="pa-b"><button id="p-datas" title="Datas do período com os dias da semana marcados">Selecionar datas</button><button id="p-imoveis">Todos os imóveis</button><button id="p-limpa" ${n || m ? "" : "disabled"}>Limpar</button></div></div>
    <div class="pa-acoes">
      ${linha("pct", "Ajustar diária", `<label class="pa-in"><input id="p-pct" type="number" step="1" value="${esc(S.vPct ?? "")}" placeholder="-10"><span>%</span></label>`, `sobre a base · ${L.PCT_MIN}% a +${L.PCT_MAX}%`)}
      ${linha("one_night_on", "Liberar 1 noite", `<label class="pa-in"><input id="p-1n" type="number" step="1" min="0" value="${esc(S.v1n ?? "")}" placeholder="30"><span>%</span></label>`, "acima da diária mínima")}
@@ -491,7 +497,8 @@ function ligarPainel() {
     previa();
   }));
   [i1, i2].forEach((inp) => inp && (inp.onkeydown = (e) => { if (e.key === "Enter") inp.closest(".pa-l").querySelector("[data-op]").click(); }));
-  $("#p-tudo").onclick = () => { S.selL = new Set(listaVisivel().map((l) => l.id)); selecionarDatasPelosDias(); pintarSelecao(); };
+  $("#p-datas").onclick = () => { selecionarDatasPelosDias(); pintarSelecao(); };
+  $("#p-imoveis").onclick = () => { S.selL = new Set(listaVisivel().filter((l) => !l.is_margem).map((l) => l.id)); pintarSelecao(); };
   $("#p-limpa").onclick = () => { S.selL = new Set(); S.selD = new Set(); pintarSelecao(); };
 }
 function atualizarPainel() {
