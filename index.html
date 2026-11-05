@@ -63,6 +63,8 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .rea-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px}
 .rea-grid h3{font-size:1rem;margin:0 0 4px}
 .rea-t{width:auto;margin:6px 0}.rea-t input{width:64px}
+.cp-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 14px;max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px}
+.cp-lista label{display:flex;gap:6px;align-items:center;font-size:.85rem}
 .massa{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 8px}.massa button{padding:3px 10px;font-size:.8rem}.massa .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
 tr.rsel td{background:var(--orange-soft)}
 .rea-nmin{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.rea-nmin label{font-weight:700}
@@ -719,7 +721,11 @@ async function telaAuto() {
   $("#app").innerHTML = cabecalho() + `<div class="wrap card">
    <h2>Automação: ocupação × antecedência</h2>
    <p class="mute">Cada região usa a tabela do <b>grupo</b> dela (Rápida, Média ou Lenta, pelo perfil de vendas) ou uma <b>tabela própria</b>. Cada quadradinho é o ajuste sobre a diária base quando a ocupação da região e a antecedência do check-in caem naquela faixa (de ${S.limites.PCT_MIN}% a +${S.limites.PCT_MAX}%). Quadradinho vazio = sem sugestão. Nada é gravado na Stays sem você aplicar.</p>
-   <div class="esc-bar"><label>Editando a tabela do <select id="esc-sel"></select></label><span id="esc-info" class="small mute"></span></div>
+   <div class="esc-bar"><label>Editando a tabela do <select id="esc-sel"></select></label>
+     <button id="esc-copiar" title="Copia esta tabela (como está salva) para outras regiões ou grupos">Copiar esta tabela para…</button>
+     <button id="esc-novo" title="Cria um grupo com nome, começando com esta tabela">+ Novo grupo</button>
+     <span id="esc-gbtn"></span>
+     <span id="esc-info" class="small mute" style="flex-basis:100%"></span></div>
    <div id="rg">Carregando…</div>
    <h2 style="margin-top:28px">Regiões e grupos</h2>
    <p class="mute">O <b>intervalo normal</b> é o tempo entre uma reserva e a seguinte para a mesma noite (75% dos casos, antecedência até 30 dias, últimos 90 dias). Até 2 dias = Rápida, 3–5 = Média, 6+ = Lenta. Você pode trocar o grupo ou dar uma tabela própria para a região.</p>
@@ -749,6 +755,7 @@ function desenharEscopo() {
     if (JSON.stringify(AUTO) !== AUTO_ORIG && !confirm("Há mudanças não salvas nesta tabela (ficam guardadas como rascunho). Trocar mesmo?")) { sel.value = escKey(); return; }
     const v = sel.value; ESC = v.startsWith("r:") ? { region: v.slice(2) } : { grupo_id: Number(v.slice(2)) }; await carregarEscopo();
   };
+  ligarBotoesEscopo();
   const info = $("#esc-info");
   if (info) {
     const usam = AG.regioes.filter((r) => r.grupo_id === ESC.grupo_id && !r.tabela_propria).map((r) => r.name);
@@ -756,6 +763,57 @@ function desenharEscopo() {
       : usam.length ? `Usada por: ${esc(usam.join(", "))}.`
       : `<span class="aviso" style="display:inline-block;margin:0">Nenhuma região usa esta tabela agora: todas do grupo têm tabela própria. Ela vale para regiões novas do grupo ou se você desmarcar "Tabela própria" de alguma.</span>`;
   }
+}
+/* botões: novo grupo, copiar tabela, renomear e apagar grupo */
+function ligarBotoesEscopo() {
+  const gb = $("#esc-gbtn"); if (!gb) return;
+  gb.innerHTML = ESC.grupo_id ? `<button id="esc-ren">Renomear grupo</button> <button id="esc-del">Apagar grupo</button>` : "";
+  const naoSalvo = () => JSON.stringify(AUTO) !== AUTO_ORIG;
+  const recarregar = async (msg) => { AG = await api("auto_get"); desenharEscopo(); desenharRegioes(msg); await carregarEscopo(); };
+  $("#esc-novo").onclick = async () => {
+    if (naoSalvo()) return alert("Salve ou descarte as mudanças desta tabela antes de criar um grupo a partir dela.");
+    const nome = prompt(`Nome do novo grupo (ele começa com a tabela do ${escNome()}):`); if (!nome) return;
+    try { const r = await api("grupo_create", { nome: nome.trim(), copiar_de: ESC }); ESC = { grupo_id: r.grupo.id };
+      await recarregar(`<span class="okmsg">Grupo ${esc(r.grupo.nome)} criado. Coloque regiões nele em "Regiões e grupos" (desmarcando a tabela própria para usarem a do grupo).</span>`); }
+    catch (e) { alert(e.message); }
+  };
+  if ($("#esc-ren")) $("#esc-ren").onclick = async () => {
+    const g = AG.grupos.find((x) => x.id === ESC.grupo_id); const nome = prompt("Novo nome do grupo:", g?.nome || ""); if (!nome || nome.trim() === g?.nome) return;
+    try { await api("grupo_rename", { id: g.id, nome: nome.trim() }); await recarregar(`<span class="okmsg">Grupo renomeado para ${esc(nome.trim())}.</span>`); } catch (e) { alert(e.message); }
+  };
+  if ($("#esc-del")) $("#esc-del").onclick = () => {
+    const g = AG.grupos.find((x) => x.id === ESC.grupo_id), outros = AG.grupos.filter((x) => x.id !== g.id);
+    if (!outros.length) return alert("Precisa existir pelo menos um grupo.");
+    const regs = AG.regioes.filter((r) => r.grupo_id === g.id);
+    abrirModal(`<h2>Apagar o grupo ${esc(g.nome)}</h2><p>${regs.length ? `${regs.length} região(ões) estão neste grupo: ${esc(regs.map((r) => r.name).join(", "))}. Elas vão para o grupo:` : "Nenhuma região está neste grupo."}</p>
+      ${regs.length ? `<select id="del-dest">${outros.map((o) => `<option value="${o.id}" ${o.nome === "Média" ? "selected" : ""}>${esc(o.nome)}</option>`).join("")}</select>` : ""}
+      <p class="small mute">A tabela do grupo é apagada (fica registrada no Histórico). Tabelas próprias das regiões não mudam.</p>`, "Apagar grupo", async () => {
+      try { const r = await api("grupo_delete", { id: g.id, mover_para: $("#del-dest") ? Number($("#del-dest").value) : undefined }); fecharModal(); ESC = { grupo_id: r.destino };
+        await recarregar(`<span class="okmsg">Grupo ${esc(g.nome)} apagado${r.movidas ? `; ${r.movidas} região(ões) mudaram de grupo` : ""}.</span>`); }
+      catch (e) { $("#m-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; }
+    });
+  };
+  $("#esc-copiar").onclick = () => {
+    if (naoSalvo()) return alert("Salve ou descarte as mudanças desta tabela antes de copiar: a cópia usa a tabela salva.");
+    const regs = AG.regioes.filter((r) => r.name !== ESC.region), grs = AG.grupos.filter((g) => g.id !== ESC.grupo_id);
+    abrirModal(`<h2>Copiar a tabela do ${esc(escNome())}</h2>
+      <p class="small mute">Cada região marcada recebe uma <b>cópia</b> como tabela própria (fica independente depois). Grupos marcados têm a tabela do grupo substituída. Tudo fica no Histórico.</p>
+      <div class="massa"><span class="small mute">Selecionar regiões:</span><button data-cs="todas">Todas</button>${AG.grupos.map((g) => `<button data-cs="g${g.id}">${esc(g.nome)}</button>`).join("")}<button data-cs="nenhuma">Nenhuma</button></div>
+      <div class="cp-lista">${regs.map((r) => `<label><input type="checkbox" data-cr="${esc(r.name)}"> ${esc(r.name)} <span class="small mute">${esc(AG.grupos.find((g) => g.id === r.grupo_id)?.nome || "")}${r.tabela_propria ? " · própria" : ""}</span></label>`).join("")}</div>
+      ${grs.length ? `<p style="margin-top:12px"><b>Tabelas de grupo</b></p><div class="cp-lista">${grs.map((g) => `<label><input type="checkbox" data-cg="${g.id}"> grupo ${esc(g.nome)}</label>`).join("")}</div>` : ""}`,
+      "Copiar", async () => {
+        const para_regioes = [...document.querySelectorAll("[data-cr]:checked")].map((c) => c.dataset.cr), para_grupos = [...document.querySelectorAll("[data-cg]:checked")].map((c) => Number(c.dataset.cg));
+        if (!para_regioes.length && !para_grupos.length) return ($("#m-msg").innerHTML = `<span class="msg">Marque pelo menos um destino.</span>`);
+        if (para_regioes.some((n) => AG.regioes.find((r) => r.name === n)?.tabela_propria) && !confirm("Algumas regiões marcadas já têm tabela própria: ela será substituída por esta. Continuar?")) return;
+        const ok = $("#m-ok"); ok.disabled = true; ok.textContent = "Copiando…";
+        try { const r = await api("rules_copy", { de: ESC, para_regioes, para_grupos }); fecharModal(); S.grid = null;
+          await recarregar(r.erros.length ? `<span class="msg">${r.ok} copiadas, ${r.erros.length} com erro: ${esc(r.erros.join(" | "))}</span>` : `<span class="okmsg">Tabela copiada para ${r.ok} destino(s).</span>`); }
+        catch (e) { $("#m-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; ok.disabled = false; ok.textContent = "Copiar"; }
+      });
+    document.querySelectorAll("[data-cs]").forEach((b) => (b.onclick = () => { const v = b.dataset.cs;
+      document.querySelectorAll("[data-cr]").forEach((c) => { const r = AG.regioes.find((x) => x.name === c.dataset.cr);
+        c.checked = v === "todas" ? true : v === "nenhuma" ? false : r.grupo_id === Number(v.slice(1)); }); }));
+  };
 }
 async function carregarEscopo() {
   $("#rg").innerHTML = "Carregando…";
