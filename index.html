@@ -728,7 +728,7 @@ async function telaAuto() {
      <span id="esc-info" class="small mute" style="flex-basis:100%"></span></div>
    <div id="rg">Carregando…</div>
    <h2 style="margin-top:28px">Regiões e grupos</h2>
-   <p class="mute">O <b>intervalo normal</b> é o tempo entre uma reserva e a seguinte para a mesma noite (75% dos casos, antecedência até 30 dias, últimos 90 dias). Até 2 dias = Rápida, 3–5 = Média, 6+ = Lenta. Você pode trocar o grupo ou dar uma tabela própria para a região.</p>
+   <p class="mute">O <b>intervalo normal</b> é o tempo entre uma reserva e a seguinte para a mesma noite (75% dos casos, últimos 90 dias). A coluna geral (antecedência até 30 dias) define o grupo sugerido: até 2 dias = Rápida, 3–5 = Média, 6+ = Lenta. O <b>freio</b> usa o normal da faixa de antecedência em que a noite está — quanto mais longe o check-in, mais espaçadas as reservas costumam ser (faixa com poucos dados usa o geral). Você pode trocar o grupo ou dar uma tabela própria para a região.</p>
    <div id="regs">Carregando…</div>
    <h2 style="margin-top:28px">Reação às vendas</h2>
    <p class="mute">Ajusta a sugestão da tabela conforme a <b>recência</b> (dias sem reserva para aquela noite, comparados ao intervalo normal da região) e o <b>ritmo</b> de vendas (reservas da última semana vs. o normal). O freio recua quando não vende e a aceleração avança quando vende rápido. Os números aparecem na grade do calendário, nas linhas abaixo da sugestão.</p>
@@ -837,8 +837,9 @@ function desenharRegioes(msg) {
      <button data-mass="on" ${nSel ? "" : "disabled"}>Marcar tabela própria</button>
      <button data-mass="off" ${nSel ? "" : "disabled"}>Desmarcar tabela própria</button>
      <label class="small">Mover para <select id="mass-grupo" ${nSel ? "" : "disabled"}><option value="">grupo…</option>${AG.grupos.map((g) => `<option value="${g.id}">${esc(g.nome)}</option>`).join("")}</select></label></div>
-   <div class="rtab" style="max-height:420px"><table class="t"><tr><th><input type="checkbox" id="sel-todas" ${todas ? "checked" : ""} title="Selecionar todas"></th><th>Região</th><th>Intervalo normal</th><th>Reservas por noite</th><th>Grupo</th><th>Tabela própria</th><th></th></tr>
+   <div class="rtab" style="max-height:420px"><table class="t"><tr><th><input type="checkbox" id="sel-todas" ${todas ? "checked" : ""} title="Selecionar todas"></th><th>Região</th><th>Intervalo normal</th><th title="Dias entre reservas da mesma noite conforme a antecedência: 0–7 · 8–14 · 15–30 · 31+ dias. É o que o freio usa.">Normal por antecedência<br><span class="small mute">0–7 · 8–14 · 15–30 · 31+</span></th><th>Reservas por noite</th><th>Grupo</th><th>Tabela própria</th><th></th></tr>
    ${AG.regioes.map((r) => `<tr class="${REG_SEL.has(r.name) ? "rsel" : ""}"><td><input type="checkbox" data-sel="${esc(r.name)}" ${REG_SEL.has(r.name) ? "checked" : ""}></td><td>${esc(r.name)}</td><td>${r.intervalo == null ? "<span class='mute'>sem histórico</span>" : `${String(r.intervalo).replace(".", ",")} dia${Number(r.intervalo) === 1 ? "" : "s"}`}</td>
+     <td class="small">${(r.faixas || []).length ? [0, 8, 15, 31].map((m) => { const f = r.faixas.find((x) => x.lead_min === m); return f?.intervalo != null ? String(f.intervalo).replace(".", ",") : "<span class='mute'>·</span>"; }).join(" · ") + " d" : "—"}</td>
      <td>${r.reservas_noite == null ? "—" : String(r.reservas_noite).replace(".", ",")}</td><td>${gsel(r)}</td>
      <td><input type="checkbox" data-rp="${esc(r.name)}" ${r.tabela_propria ? "checked" : ""}></td>
      <td>${r.tabela_propria ? `<button data-ed="${esc(r.name)}">Editar tabela</button>` : ""}</td></tr>`).join("")}</table></div>
@@ -942,12 +943,13 @@ let REA = null, REA_ORIG = "";
 /* exemplo do freio em dias para algumas regiões reais */
 function exemploFreio() {
   if (!AG?.regioes || !REA?.freio?.length) return "";
-  const comInt = AG.regioes.filter((r) => r.intervalo != null).sort((a, b) => a.intervalo - b.intervalo);
+  const iv7 = (r) => r.faixas?.find((x) => x.lead_min === 0)?.intervalo ?? r.intervalo;
+  const comInt = AG.regioes.filter((r) => iv7(r) != null).map((r) => ({ ...r, intervalo: iv7(r) })).sort((a, b) => a.intervalo - b.intervalo);
   if (!comInt.length) return "";
   const pick = [...new Set([S.region, comInt[0].name, comInt[Math.floor(comInt.length / 2)].name, comInt[comInt.length - 1].name])].map((n) => comInt.find((r) => r.name === n)).filter(Boolean).slice(0, 4);
   const dias = (x, iv) => Math.ceil(x * Math.max(1, iv));
   const fr = REA.freio.filter((f) => Number(f.usar) < 100);
-  return `<table class="t rea-t"><tr><th>Na prática</th><th>Normal</th>${fr.map((f) => `<th>usa ${f.usar}% com</th>`).join("")}</tr>
+  return `<p class="small mute" style="margin:6px 0 2px">Na prática, para noites a 0–7 dias do check-in:</p><table class="t rea-t"><tr><th>Região</th><th>Normal</th>${fr.map((f) => `<th>usa ${f.usar}% com</th>`).join("")}</tr>
     ${pick.map((r) => `<tr><td>${esc(r.name)}</td><td>${String(r.intervalo).replace(".", ",")} d</td>${fr.map((f) => `<td>${dias(Number(f.de), r.intervalo)}+ dias</td>`).join("")}</tr>`).join("")}</table>`;
 }
 async function carregarReacao() {
@@ -962,7 +964,7 @@ function desenharReacao(msg) {
   el.innerHTML = `<label class="rea-on"><input type="checkbox" id="rea-ativo" ${R.ativo !== false ? "checked" : ""}> Usar a reação às vendas na sugestão</label>
    <div class="rea-grid">
     <div><h3>Freio: dias sem reserva</h3>
-     <p class="small mute">Dias sem reserva para aquela noite (desde a última reserva <b>ou</b> o último ajuste de preço) divididos pelo <b>intervalo normal da região</b>. Assim a mesma configuração serve para região rápida e lenta. Vale só para <b>acréscimos</b> e só se ainda houver unidade livre.</p>
+     <p class="small mute">Dias sem reserva para aquela noite (desde a última reserva <b>ou</b> o último ajuste de preço) divididos pelo <b>intervalo normal da região naquela antecedência</b> (ex.: 4 dias a 15–30 dias do check-in, 10 dias a mais de 30). Assim a mesma configuração serve para região rápida e lenta. Vale só para <b>acréscimos</b> e só se ainda houver unidade livre.</p>
      <table class="t rea-t"><tr><th>De (× o normal)</th><th>Até (× o normal)</th><th>Usar do acréscimo</th><th></th></tr>
       ${R.freio.map((f, i) => `<tr><td><input type="number" min="0" step="0.5" data-f="${i}" data-k="de" value="${f.de}"> ×</td>
         <td><input type="number" min="0" step="0.5" data-f="${i}" data-k="ate" value="${f.ate ?? ""}" placeholder="ou mais"> ×</td>
