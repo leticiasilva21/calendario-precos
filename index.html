@@ -291,24 +291,23 @@ function faixaFiltros() {
    <label>De <input type="date" id="f-from" value="${S.from}" min="${hoje()}"></label>
    <label>Até <input type="date" id="f-to" value="${S.to}" min="${hoje()}"></label>
    <span class="dows" title="Dias da semana usados na seleção">${[1, 2, 3, 4, 5, 6, 0].map((d) => `<button data-dow="${d}" aria-pressed="${S.dows.has(d)}" class="${S.dows.has(d) ? "on" : ""}" title="${S.dows.has(d) ? "Ligado: entra na seleção" : "Desligado: fora da seleção"}">${DOW[d]}</button>`).join("")}</span>
-   <button class="prim" id="f-load">Carregar</button>
    <button id="f-refresh" title="Relê preços e disponibilidade da Stays para a região agora">Atualizar da Stays</button>
    <input id="f-busca" placeholder="Filtrar imóvel…" value="${esc(S.busca)}" style="flex:0 1 200px">
    <span class="mute small" id="f-info"></span></div>`;
 }
 function telaCal() {
-  $("#app").innerHTML = cabecalho() + faixaFiltros() + `<div id="gridarea">${S.grid ? "" : `<p class="wrap mute">Escolha a região tarifária e o período e clique em <b>Carregar</b>.</p>`}</div>`;
+  $("#app").innerHTML = cabecalho() + faixaFiltros() + `<div id="gridarea">${S.grid ? "" : `<p class="wrap mute">Escolha a região tarifária: a grade carrega sozinha.</p>`}</div>`;
   ligarCab();
-  $("#f-reg").onchange = (e) => { S.region = e.target.value; localStorage.setItem("cp-region", S.region); };
-  $("#f-from").onchange = (e) => (S.from = e.target.value);
-  $("#f-to").onchange = (e) => (S.to = e.target.value);
+  // carrega sozinho ao trocar região ou datas (sem botão Carregar)
+  $("#f-reg").onchange = (e) => { S.region = e.target.value; localStorage.setItem("cp-region", S.region); if (S.region) carregarGrade(); };
+  $("#f-from").onchange = (e) => { if (!e.target.value) return; S.from = e.target.value; if (S.to < S.from) { S.to = addD(S.from, 41); $("#f-to").value = S.to; } if (S.region) carregarGrade(); };
+  $("#f-to").onchange = (e) => { if (!e.target.value) return; S.to = e.target.value; if (S.region) carregarGrade(); };
   document.querySelectorAll("[data-dow]").forEach((b) => (b.onclick = () => {
     const d = +b.dataset.dow; S.dows.has(d) ? S.dows.delete(d) : S.dows.add(d);
     localStorage.setItem("cp-dows", JSON.stringify([...S.dows])); const on = b.classList.toggle("on"); b.setAttribute("aria-pressed", on); b.title = on ? "Ligado: entra na seleção" : "Desligado: fora da seleção";
     if (S.grid) { selecionarDatasPelosDias(); desenharGrade(); }
   }));
   $("#f-busca").oninput = (e) => { S.busca = e.target.value; if (S.grid) desenharGrade(); };
-  $("#f-load").onclick = carregarGrade;
   $("#f-refresh").onclick = async (e) => {
     if (!S.region) return;
     const b = e.target; b.disabled = true; b.textContent = "Atualizando…";
@@ -316,7 +315,7 @@ function telaCal() {
     catch (err) { $("#f-info").textContent = err.message; }
     b.disabled = false; b.textContent = "Atualizar da Stays";
   };
-  if (S.grid) desenharGrade();
+  if (S.grid) desenharGrade(); else if (S.region) carregarGrade();
 }
 function selecionarDatasPelosDias() {
   S.selD = new Set(datas().filter((d) => S.dows.has(dowOf(d)) && d >= hoje()));
@@ -324,16 +323,18 @@ function selecionarDatasPelosDias() {
 async function carregarGrade() {
   if (!S.region) return ($("#f-info").textContent = "Escolha a região.");
   if (S.to < S.from) return ($("#f-info").textContent = "A data final é antes da inicial.");
-  $("#gridarea").innerHTML = `<p class="wrap mute">Carregando…</p>`;
+  $("#gridarea").innerHTML = `<p class="wrap mute">Carregando ${esc(S.region)}…</p>`;
+  const seq = (S.loadSeq = (S.loadSeq || 0) + 1); // trocas rápidas: só a última resposta vale
   try {
     const [g, s] = await Promise.all([api("grid", { region: S.region, from: S.from, to: S.to }), api("suggest", { region: S.region, from: S.from, to: S.to })]);
+    if (seq !== S.loadSeq) return;
     S.prefixo = detectarPrefixo((g.listings || []).map((l) => l.nome));
     S.grid = g; S.gridVer = (S.gridVer || 0) + 1; S.prev = null; S.sug = Object.fromEntries((s.dias || []).map((x) => [x.date, x]));
     S.selL = new Set((g.listings || []).filter((l) => !l.is_margem).map((l) => l.id));
     selecionarDatasPelosDias();
     $("#f-info").innerHTML = seloIdade(g.synced_at);
     desenharGrade();
-  } catch (err) { $("#gridarea").innerHTML = `<p class="wrap msg">${esc(err.message)}</p>`; }
+  } catch (err) { if (seq === S.loadSeq) $("#gridarea").innerHTML = `<p class="wrap msg">${esc(err.message)}</p>`; }
 }
 /* prefixo repetido da região (ex.: "BA-SSA-AR.ArtStudio"): o mais longo, cortado em separador, que aparece em pelo menos metade dos nomes */
 const SEP = /[\s.\-_·|\/:,]/;
@@ -363,7 +364,7 @@ function legenda() {
    <span class="it"><span class="escala"></span>Cor da célula: preço atual vs. diária base (verde abaixo até −25%, branco na base, laranja acima até +50%)</span>
    <span class="it"><span class="sw" style="background:var(--occ)"></span>Reservado / sem unidade livre</span>
    <span class="it"><span class="sw" style="background:repeating-linear-gradient(135deg,#eef0f4 0 4px,#d9dde5 4px 6px)"></span>Bloqueado ou manutenção (sem reserva no dia)</span>
-   <span class="it"><b style="color:var(--ink)">2/8</b> unidades livres ÷ total do grupo (na ocupação: ocupadas ÷ em operação)</span>
+   <span class="it"><b style="color:var(--ink)">2 livres</b> unidades livres no dia, em anúncios que são grupo de unidades · na linha de ocupação, <b style="color:var(--ink)">51/92</b> = ocupadas ÷ em operação</span>
    <span class="it"><span class="sw" style="background:var(--orange)"></span>Data selecionada (cabeçalho laranja)</span>
    <span class="it"><span class="sg"><s>219</s> <b style="color:var(--ink)">197</b></span> preço atual (riscado) → sugestão da automação</span>
    ${S.prefixo ? `<span class="it">Nomes sem o prefixo comum da região: <b style="color:var(--ink)">${esc(S.prefixo)}</b></span>` : ""}
@@ -404,7 +405,7 @@ function desenharGrade() {
         if (prop && mt && prop[1] !== mt[1]) sgTxt = `<span class="sg"><s>${num(mt[1])}</s> <b>${num(prop[1])}</b></span>`;
       }
       const bloq = full && Number(c?.[6] || 0) > 0 && !Number(c?.[7] || 0); // c[6] bloqueadas, c[7] reservadas (tabela de reservas)
-      const badges = (pct ? `<span class="b ${pct > 0 ? "up" : "dn"}">${pct > 0 ? "+" : ""}${pct}%</span>` : "") + (one != null ? `<span class="b n1">1N</span>` : "") + (units > 1 ? `<span class="b av">${avail ?? "?"}/${units}</span>` : "");
+      const badges = (pct ? `<span class="b ${pct > 0 ? "up" : "dn"}">${pct > 0 ? "+" : ""}${pct}%</span>` : "") + (one != null ? `<span class="b n1">1N</span>` : "") + (units > 1 ? `<span class="b av" title="${avail ?? "?"} de ${units} unidades do grupo livres">${avail ?? "?"} livre${avail === 1 ? "" : "s"}</span>` : "");
       const bg = corDesvio(dv);
       h += `<td class="c ${full ? (bloq ? "blk" : "full") : ""} ${sel ? "sel" : ""}" data-c="${l.id}|${d}"${bg ? ` style="background:${bg}"` : ""}>${sgTxt || `<span class="p">${mt ? brl(mt[1]) : "—"}</span>`}${badges}</td>`;
     }
