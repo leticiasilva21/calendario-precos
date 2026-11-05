@@ -83,6 +83,7 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .mapa th.ax{font-weight:600;color:var(--mute);padding:0 4px;text-align:right;white-space:nowrap}
 .mapa tr:first-child th.ax{text-align:left;padding:0}
 .vazio{background:repeating-linear-gradient(135deg,#fff 0 3px,#f3b9b3 3px 5px)!important}
+.vazio-log{max-width:640px;margin:24px auto;text-align:center;background:var(--panel);border-radius:12px;padding:24px}
 .aviso ul{margin:4px 0 0;padding-left:20px}
 .aviso{background:var(--warn-soft);color:#6b4b00;border-radius:8px;padding:8px 12px;font-size:.85rem;margin:6px 0}
 .g td.c .p{font-weight:700;display:block}
@@ -663,11 +664,36 @@ async function telaLog() {
   ligarCab();
   $("#lg-go").onclick = carregarLog; carregarLog();
 }
+let LOG_ROWS = [];
+function vazioLog() {
+  const filtro = $("#lg-reg")?.value || $("#lg-user")?.value.trim();
+  return `<div class="vazio-log"><h2>${filtro ? "Nada encontrado com esse filtro" : "Ainda não há alterações registradas"}</h2>
+   <p class="mute">Aqui aparece cada gravação feita pela ferramenta: quem gravou, quando, qual ação (ajuste %, 1 noite, volta à base, sugestão da automação), em quais anúncios e datas, e o preço antes → depois. Mudanças na tabela de automação também ficam registradas.</p>
+   <p class="mute">Cada lote tem o botão <b>Desfazer</b>, que mostra uma prévia e, depois de confirmar, devolve na Stays os valores de antes.</p></div>`;
+}
+/* desfazer: prévia (atual → valor anterior) a partir do log e confirmação */
+function previaDesfazer(batch) {
+  const rs = LOG_ROWS.filter((r) => r.batch_id === batch && r.status === "ok" && r.date && (r.before || []).length);
+  if (!rs.length) return alert("Nada para desfazer nesse lote.");
+  const ch = rs.map((r) => ({ id: r.sell_nome || "?", d: r.date, antes: r.after || [], depois: r.before || [] }));
+  const R = resumir(ch, {});
+  const at = rs[0].at, chaves = new Set(rs.map((r) => (r.sell_nome || "") + "|" + r.date));
+  const depois = LOG_ROWS.filter((r) => r.batch_id !== batch && r.status === "ok" && r.date && r.at > at && chaves.has((r.sell_nome || "") + "|" + r.date));
+  const aviso = depois.length ? `<div class="aviso"><b>Atenção:</b> ${depois.length} dessas diárias foram alteradas de novo depois deste lote. Desfazer volta para o valor de antes deste lote e passa por cima dessas mudanças mais recentes.</div>` : "";
+  abrirModal(htmlResumo(R, `Desfazer lote de ${fmtHora(at)} · ${esc(rs[0].user_email || "")}`, `<p class="small mute">Antes = valor gravado por este lote · Depois = valor que volta para a Stays.</p>` + aviso),
+    `Confirmar e desfazer ${R.n} diárias`, async () => {
+      const ok = $("#m-ok"); ok.disabled = true; ok.textContent = "Desfazendo na Stays…";
+      try { const r = await api("revert", { batch_id: batch }); fecharModal(); alert(r.erros.length ? `Desfeito com erros — reprecificar:\n${r.erros.join("\n")}` : `Desfeito: ${r.ok} diárias.`); S.grid = null; carregarLog(); }
+      catch (e) { $("#m-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; ok.disabled = false; ok.textContent = "Tentar de novo"; }
+    });
+}
 const NOMES_OP = { pct: "Ajuste %", one_night_on: "Liberou 1 noite", one_night_off: "Tirou 1 noite", reset: "Voltou à base", rebase: "Redefiniu base", desfazer: "Desfez", regras: "Alterou regras" };
 async function carregarLog() {
   try {
     const { rows } = await api("log", { region: $("#lg-reg").value || undefined, user: $("#lg-user").value.trim() || undefined, limit: 1000 });
     const lotes = {};
+    LOG_ROWS = rows;
+    if (!rows.length) { $("#lg").innerHTML = vazioLog(); return; }
     for (const r of rows) { const k = r.batch_id || "r" + r.id; (lotes[k] ??= { ...r, n: 0, erros: 0, imoveis: new Set(), datas: [] }); lotes[k].n++; if (r.status !== "ok") lotes[k].erros++; if (r.sell_nome) lotes[k].imoveis.add(r.sell_nome); if (r.date) lotes[k].datas.push(r.date); }
     const fmt = (p) => (p || []).map((t) => `${t[0]}n ${brl(t[1])}`).join(" · ");
     $("#lg").innerHTML = `<table class="t"><tr><th>Quando</th><th>Usuário</th><th>Ação</th><th>Região</th><th>Imóveis</th><th>Datas</th><th>Diárias</th><th></th></tr>
@@ -675,13 +701,8 @@ async function carregarLog() {
        <td>${esc(b.region_name || "")}</td><td>${b.imoveis.size}<div class="small mute">${esc([...b.imoveis].slice(0, 2).join(", "))}${b.imoveis.size > 2 ? "…" : ""}</div></td>
        <td>${ds.length ? fmtD(ds[0]) + (ds.length > 1 ? " a " + fmtD(ds[ds.length - 1]) : "") : ""}</td>
        <td>${b.n}${b.erros ? ` <span class="msg">(${b.erros} com erro)</span>` : ""}<div class="small mute">${b.date ? "ex.: " + fmt(b.before) + " → " + fmt(b.after) : ""}</div></td>
-       <td>${b.batch_id && b.action !== "regras" && b.action !== "desfazer" && b.n - b.erros > 0 ? `<button data-rev="${b.batch_id}">Desfazer</button>` : ""}</td></tr>`; }).join("") || `<tr><td colspan="8" class="mute">Nenhuma alteração ainda.</td></tr>`}</table>`;
-    document.querySelectorAll("[data-rev]").forEach((b) => (b.onclick = async () => {
-      if (!confirm("Voltar as diárias desse lote para o valor anterior na Stays?")) return;
-      b.disabled = true; b.textContent = "Desfazendo…";
-      try { const r = await api("revert", { batch_id: b.dataset.rev }); alert(r.erros.length ? `Desfeito com erros:\n${r.erros.join("\n")}` : `Desfeito: ${r.ok} diárias.`); S.grid = null; carregarLog(); }
-      catch (e) { alert(e.message); b.disabled = false; b.textContent = "Desfazer"; }
-    }));
+       <td>${b.batch_id && b.action !== "regras" && b.action !== "desfazer" && b.n - b.erros > 0 ? `<button data-rev="${b.batch_id}">Desfazer</button>` : ""}</td></tr>`; }).join("") || ""}</table>`;
+    document.querySelectorAll("[data-rev]").forEach((b) => (b.onclick = () => previaDesfazer(b.dataset.rev)));
   } catch (e) { $("#lg").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
 }
 
