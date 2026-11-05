@@ -66,6 +66,18 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .g td.c .sg{display:block;font-size:.68rem;line-height:1.1;white-space:nowrap}
 .g td.c .sg s{color:var(--mute);font-weight:600}.g td.c .sg b{color:var(--navy)}
 .g td.c.sel{box-shadow:inset 0 0 0 2px var(--orange)}
+.g.temsel td.c:not(.sel){opacity:.42}
+.g td.c{user-select:none}
+.up-t{color:#b4501f}.dn-t{color:var(--ok)}
+.modal{position:fixed;inset:0;background:rgba(22,41,79,.35);z-index:30;display:grid;place-items:center;padding:16px}
+.modal .caixa{background:#fff;border-radius:12px;max-width:860px;width:100%;max-height:88vh;overflow:auto;padding:20px 22px;box-shadow:0 12px 40px rgba(22,41,79,.25)}
+.modal .pe{display:flex;gap:10px;justify-content:flex-end;align-items:center;margin-top:14px;position:sticky;bottom:-20px;background:#fff;padding:10px 0}
+.modal .pe span{margin-right:auto}
+.kpis{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0}
+.kpis>div{background:var(--panel);border-radius:8px;padding:8px 12px;display:grid;min-width:110px}
+.kpis b{font-size:1.15rem;font-variant-numeric:tabular-nums}.kpis span{font-size:.78rem;color:var(--mute);font-weight:600}.kpis small{font-size:.74rem;color:var(--mute)}
+.rtab{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.aviso{background:var(--warn-soft);color:#6b4b00;border-radius:8px;padding:8px 12px;font-size:.85rem;margin:6px 0}
 .g td.c .p{font-weight:700;display:block}
 .sg s{color:var(--mute);font-weight:600}
 .g td.c .b{font-size:.66rem;display:inline-block;border-radius:4px;padding:0 3px;margin:0 1px;font-weight:700}
@@ -274,13 +286,14 @@ async function carregarGrade() {
   $("#gridarea").innerHTML = `<p class="wrap mute">Carregando…</p>`;
   try {
     const [g, s] = await Promise.all([api("grid", { region: S.region, from: S.from, to: S.to }), api("suggest", { region: S.region, from: S.from, to: S.to })]);
-    S.grid = g; S.sug = Object.fromEntries((s.dias || []).map((x) => [x.date, x]));
+    S.grid = g; S.gridVer = (S.gridVer || 0) + 1; S.prev = null; S.sug = Object.fromEntries((s.dias || []).map((x) => [x.date, x]));
     S.selL = new Set((g.listings || []).filter((l) => !l.is_margem).map((l) => l.id));
     selecionarDatasPelosDias();
     $("#f-info").innerHTML = seloIdade(g.synced_at);
     desenharGrade();
   } catch (err) { $("#gridarea").innerHTML = `<p class="wrap msg">${esc(err.message)}</p>`; }
 }
+function nomeCurto(n) { return n || ""; }
 function seloIdade(iso) {
   if (!iso) return `<span class="selo vermelho">Sem dados da Stays — clique em Atualizar da Stays</span>`;
   const min = Math.max(0, (Date.now() - new Date(iso).getTime()) / 60000);
@@ -310,7 +323,7 @@ function listaVisivel() {
 function desenharGrade() {
   const G = S.grid, D = datas(), L = listaVisivel();
   const occ = (d) => { const o = G.occ[d]; return o && o[0] ? Math.round(1000 * (1 - o[1] / o[0])) / 10 : null; };
-  let h = legenda() + `<div class="gridbox"><table class="g"><thead><tr><th class="nm"><input type="checkbox" id="all" ${L.every((l) => S.selL.has(l.id)) ? "checked" : ""}> ${L.length} anúncios</th>`;
+  let h = legenda() + `<div class="gridbox"><table class="g" id="tg"><thead><tr><th class="nm"><input type="checkbox" id="all" ${L.every((l) => S.selL.has(l.id)) ? "checked" : ""}> ${L.length} anúncios</th>`;
   for (const d of D) { const w = dowOf(d); h += `<th class="dh ${w === 0 || w === 6 ? "we" : ""} ${S.selD.has(d) ? "sel" : ""}" data-d="${d}">${fmtD(d)}<small>${DOW[w]}</small></th>`; }
   h += `</tr></thead><tbody><tr class="occ"><th class="nm">Ocupação da região <span class="tag">ocupadas ÷ em operação</span></th>`;
   for (const d of D) { const p = occ(d), o = G.occ[d]; h += `<td class="o" style="background:${corOcc(p)}" data-tipocc="${d}">${p == null ? "—" : p.toFixed(0) + "%"}<div class="small mute" style="font-weight:600">${o ? o[0] - o[1] + "/" + o[0] : ""}</div></td>`; }
@@ -340,7 +353,7 @@ function desenharGrade() {
     }
     h += `</tr>`;
   }
-  h += `</tbody></table></div><div id="prev"></div>` + painelAcao();
+  h += `</tbody></table></div>` + painelAcao();
   $("#gridarea").innerHTML = h;
   ligarGrade();
 }
@@ -348,34 +361,87 @@ function painelAcao() {
   const n = S.selL.size, m = S.selD.size, L = S.limites;
   const ops = [["pct", "Ajustar diária (% sobre a base)"], ["one_night_on", "Liberar 1 noite (+% sobre a diária mínima atual)"], ["one_night_off", "Tirar a liberação de 1 noite"], ["reset", "Voltar para a diária base"], ["rebase", "Redefinir base = preço atual da Stays"]];
   const pedeVal = S.op === "pct" || S.op === "one_night_on";
+  const pronta = S.prev && S.prev.chave === chave();
   return `<div class="acao"><span class="sel">${n} anúncio${n === 1 ? "" : "s"} × ${m} data${m === 1 ? "" : "s"}</span>
    <select id="a-op">${ops.map(([k, t]) => `<option value="${k}" ${S.op === k ? "selected" : ""}>${t}</option>`).join("")}</select>
    ${pedeVal ? `<label class="mute">% <input id="a-val" type="number" step="1" style="width:80px" value="${esc(S.val)}" placeholder="${S.op === "pct" ? `${L.PCT_MIN} a +${L.PCT_MAX}` : `0 a ${L.ONE_NIGHT_MAX}`}"></label>` : ""}
-   <button id="a-prev">Prévia</button><button class="prim" id="a-apl" ${n && m ? "" : "disabled"}>Gravar na Stays</button>
-   <button id="a-sug" title="Grava a sugestão da tabela de automação nas datas selecionadas, para os anúncios selecionados">Aplicar sugestão da automação</button>
-   <span id="a-msg" class="small"></span></div>`;
+   <button id="a-prev">Prévia</button><button class="prim" id="a-apl" ${pronta ? "" : "disabled"} title="${pronta ? "Abre o resumo para confirmar" : "Rode a Prévia para esta seleção antes de gravar"}">Gravar na Stays</button>
+   <button id="a-sug" title="Mostra a prévia da sugestão da automação nas datas e anúncios selecionados">Aplicar sugestão da automação</button>
+   <span id="a-msg" class="small">${pronta ? "" : `<span class="mute">Rode a Prévia para liberar a gravação.</span>`}</span></div>`;
 }
+/* chave da seleção + ação: qualquer mudança invalida a prévia */
+function chave(tipo = "op") {
+  return JSON.stringify([tipo, tipo === "op" ? S.op : "", tipo === "op" ? S.val : "", S.gridVer, [...S.selL].sort(), [...S.selD].sort()]);
+}
+function atualizarBotaoGravar() {
+  const b = $("#a-apl"); if (!b) return;
+  const pronta = S.prev && S.prev.chave === chave();
+  b.disabled = !pronta; b.title = pronta ? "Abre o resumo para confirmar" : "Rode a Prévia para esta seleção antes de gravar";
+  if (!pronta && $("#a-msg") && !$("#a-msg").querySelector(".msg,.okmsg")) $("#a-msg").innerHTML = `<span class="mute">Rode a Prévia para liberar a gravação.</span>`;
+}
+/* marca as células selecionadas sem redesenhar a tabela inteira */
+function pintarSelecao() {
+  document.querySelectorAll("td.c").forEach((td) => { const [id, d] = td.dataset.c.split("|"); td.classList.toggle("sel", S.selL.has(id) && S.selD.has(d)); });
+  document.querySelectorAll("th.dh").forEach((th) => th.classList.toggle("sel", S.selD.has(th.dataset.d)));
+  document.querySelectorAll("[data-l]").forEach((c) => { c.checked = S.selL.has(c.dataset.l); c.closest("tr").classList.toggle("off", !c.checked); });
+  const tb = document.querySelector("table.g"); if (tb) tb.classList.toggle("temsel", S.selL.size > 0 && S.selD.size > 0);
+  const sp = document.querySelector(".acao .sel"); if (sp) { const n = S.selL.size, m = S.selD.size; sp.textContent = `${n} anúncio${n === 1 ? "" : "s"} × ${m} data${m === 1 ? "" : "s"}`; }
+  atualizarBotaoGravar();
+}
+let ARR = null; // arrasto em andamento
 function ligarGrade() {
   $("#legenda").ontoggle = (e) => { try { localStorage.setItem("cp-legenda", e.target.open ? "1" : "0"); } catch {} };
-  $("#all").onchange = (e) => { for (const l of listaVisivel()) e.target.checked ? S.selL.add(l.id) : S.selL.delete(l.id); desenharGrade(); };
-  document.querySelectorAll("[data-l]").forEach((c) => (c.onchange = () => { c.checked ? S.selL.add(c.dataset.l) : S.selL.delete(c.dataset.l); desenharGrade(); }));
-  document.querySelectorAll("th.dh").forEach((th) => (th.onclick = () => { const d = th.dataset.d; if (d < hoje()) return; S.selD.has(d) ? S.selD.delete(d) : S.selD.add(d); desenharGrade(); }));
+  const L = listaVisivel(), D = datas(), idxL = new Map(L.map((l, i) => [l.id, i])), idxD = new Map(D.map((d, i) => [d, i]));
+  $("#all").onchange = (e) => { for (const l of L) e.target.checked ? S.selL.add(l.id) : S.selL.delete(l.id); pintarSelecao(); };
+  document.querySelectorAll("[data-l]").forEach((c) => (c.onclick = (e) => {
+    const i = idxL.get(c.dataset.l);
+    if (e.shiftKey && S.ancL != null) { const [a, b] = [Math.min(S.ancL, i), Math.max(S.ancL, i)]; for (let k = a; k <= b; k++) c.checked ? S.selL.add(L[k].id) : S.selL.delete(L[k].id); }
+    else c.checked ? S.selL.add(c.dataset.l) : S.selL.delete(c.dataset.l);
+    S.ancL = i; pintarSelecao();
+  }));
+  document.querySelectorAll("th.dh").forEach((th) => (th.onclick = (e) => {
+    const d = th.dataset.d; if (d < hoje()) return; const j = idxD.get(d);
+    if (e.shiftKey && S.ancD != null) { const [a, b] = [Math.min(S.ancD, j), Math.max(S.ancD, j)]; for (let k = a; k <= b; k++) if (D[k] >= hoje()) S.selD.add(D[k]); }
+    else S.selD.has(d) ? S.selD.delete(d) : S.selD.add(d);
+    S.ancD = j; pintarSelecao();
+  }));
+  /* arrasto estilo planilha: clique = 1 célula; arrastar = retângulo; Shift+clique estende do ponto inicial; Ctrl/Cmd soma à seleção atual */
+  const aplicarRet = () => {
+    const { r0, c0, r1, c1, soma, baseL, baseD } = ARR;
+    const ls = new Set(soma ? baseL : []), ds = new Set(soma ? baseD : []);
+    for (let k = Math.min(r0, r1); k <= Math.max(r0, r1); k++) ls.add(L[k].id);
+    for (let k = Math.min(c0, c1); k <= Math.max(c0, c1); k++) if (D[k] >= hoje()) ds.add(D[k]);
+    S.selL = ls; S.selD = ds; pintarSelecao();
+  };
   const tip = $("#tip");
   document.querySelectorAll("td.c").forEach((td) => {
+    const [id, d] = td.dataset.c.split("|"); const r = idxL.get(id), col = idxD.get(d);
+    td.onmousedown = (e) => {
+      if (e.button !== 0) return; e.preventDefault();
+      const soma = e.metaKey || e.ctrlKey;
+      if (e.shiftKey && S.anc && S.anc[0] < L.length && S.anc[1] < D.length) ARR = { r0: S.anc[0], c0: S.anc[1], r1: r, c1: col, soma, baseL: new Set(S.selL), baseD: new Set(S.selD) };
+      else { ARR = { r0: r, c0: col, r1: r, c1: col, soma, baseL: new Set(S.selL), baseD: new Set(S.selD) }; S.anc = [r, col]; }
+      aplicarRet();
+    };
     td.onmouseenter = (e) => {
-      const [id, d] = td.dataset.c.split("|"); const c = S.grid.cells[id]?.[d];
+      if (ARR) { if (ARR.r1 !== r || ARR.c1 !== col) { ARR.r1 = r; ARR.c1 = col; aplicarRet(); } return; }
+      const c = S.grid.cells[id]?.[d];
       if (!c) return;
-      tip.innerHTML = `<b>${fmtD(d)}</b> · ${c[0] > 1 ? `${c[1]} de ${c[0]} unidades livres` : c[1] > 0 ? "livre" : "ocupado / fechado"}<br><b>Atual</b><br>${tierTxt(c[2])}<br><b>Base</b><br>${tierTxt(c[3])}${c[4] ? `<br>Ajuste: ${c[4] > 0 ? "+" : ""}${c[4]}%` : ""}${c[5] != null ? `<br>1 noite liberada: +${c[5]}%` : ""}${(() => { const dv = desvioPct(c[2], c[3]?.length ? c[3] : c[2]); return dv != null && Math.abs(dv) >= 0.5 ? `<br>Atual vs. base: ${dv > 0 ? "+" : ""}${dv.toFixed(0)}%` : ""; })()}${S.sug?.[d]?.pct != null ? `<br>Sugestão da automação: ${S.sug[d].pct > 0 ? "+" : ""}${S.sug[d].pct}% sobre a base` : ""}`;
+      tip.innerHTML = tipCelula(d, c);
       tip.hidden = false; posTip(e);
     };
-    td.onmousemove = posTip; td.onmouseleave = () => (tip.hidden = true);
-    td.onclick = () => { const [id, d] = td.dataset.c.split("|"); if (d < hoje()) return; S.selD.has(d) ? S.selD.delete(d) : S.selD.add(d); S.selL.add(id); desenharGrade(); };
+    td.onmousemove = (e) => { if (!ARR) posTip(e); }; td.onmouseleave = () => (tip.hidden = true);
   });
+  document.onmouseup = () => { ARR = null; };
   $("#a-op").onchange = (e) => { S.op = e.target.value; desenharGrade(); };
-  if ($("#a-val")) $("#a-val").oninput = (e) => (S.val = e.target.value);
+  if ($("#a-val")) $("#a-val").oninput = (e) => { S.val = e.target.value; atualizarBotaoGravar(); };
   $("#a-prev").onclick = previa;
-  $("#a-apl").onclick = gravar;
-  $("#a-sug").onclick = gravarSugestao;
+  $("#a-apl").onclick = () => { if (S.prev && S.prev.chave === chave()) abrirResumo(S.prev); };
+  $("#a-sug").onclick = previaSugestao;
+  pintarSelecao();
+}
+function tipCelula(d, c) {
+  return `<b>${fmtD(d)}</b> · ${c[0] > 1 ? `${c[1]} de ${c[0]} unidades livres` : c[1] > 0 ? "livre" : Number(c[6] || 0) > 0 ? "bloqueado" : "ocupado / fechado"}<br><b>Atual</b><br>${tierTxt(c[2])}<br><b>Base</b><br>${tierTxt(c[3])}${c[4] ? `<br>Ajuste: ${c[4] > 0 ? "+" : ""}${c[4]}%` : ""}${c[5] != null ? `<br>1 noite liberada: +${c[5]}%` : ""}${(() => { const dv = desvioPct(c[2], c[3]?.length ? c[3] : c[2]); return dv != null && Math.abs(dv) >= 0.5 ? `<br>Atual vs. base: ${dv > 0 ? "+" : ""}${dv.toFixed(0)}%` : ""; })()}${S.sug?.[d]?.pct != null ? `<br>Sugestão da automação: ${S.sug[d].pct > 0 ? "+" : ""}${S.sug[d].pct}% sobre a base` : ""}`;
 }
 function posTip(e) { const t = $("#tip"); t.style.left = Math.min(e.clientX + 14, innerWidth - 330) + "px"; t.style.top = Math.min(e.clientY + 14, innerHeight - 200) + "px"; }
 
@@ -386,44 +452,90 @@ function validar() {
   if (!S.selL.size || !S.selD.size) return "Selecione anúncios e datas.";
   return null;
 }
-function simular() {
-  const v = Number(S.val), out = [];
+/* pctPorData: só na sugestão da automação (op pct com % por data) */
+function simular(op = S.op, val = Number(S.val), pctPorData = null) {
+  const out = [];
   for (const id of S.selL) for (const d of S.selD) {
+    if (pctPorData && pctPorData[d] == null) continue;
     const c = S.grid.cells[id]?.[d]; if (!c) continue;
     const antes = c[2] || [], base0 = c[3]?.length ? c[3] : antes; if (!base0.length) continue;
     let pct = Number(c[4] || 0), one = c[5] ?? null, base = base0;
-    if (S.op === "pct") pct = v; if (S.op === "one_night_on") one = v; if (S.op === "one_night_off") one = null;
-    if (S.op === "reset") { pct = 0; one = null; }
-    if (S.op === "rebase") { base = one != null ? antes.filter((t) => t[0] !== 1) : antes; pct = 0; }
+    if (op === "pct") pct = pctPorData ? pctPorData[d] : val; if (op === "one_night_on") one = val; if (op === "one_night_off") one = null;
+    if (op === "reset") { pct = 0; one = null; }
+    if (op === "rebase") { base = one != null ? antes.filter((t) => t[0] !== 1) : antes; pct = 0; }
     const depois = calcular(base, pct, one);
     if (JSON.stringify(depois) !== JSON.stringify(antes)) out.push({ id, d, antes, depois });
   }
   return out;
 }
+/* resumo antes → depois (diária mínima ≥ 2 noites; faixa de 1 noite contada à parte) */
+function resumir(ch, nome) {
+  const t1 = (p) => (p || []).find((t) => t[0] === 1)?.[1] ?? null;
+  let sobe = 0, desce = 0, so1n = 0; const dR = [], dP = [], itens = [];
+  for (const c of ch) {
+    const a = minTier(c.antes)?.[1], b = minTier(c.depois)?.[1];
+    const x = { ...c, nome: nome[c.id] || c.id, a, b, dr: 0, dp: 0 };
+    if (a != null && b != null && a !== b) { x.dr = b - a; x.dp = a ? 100 * (b / a - 1) : 0; dR.push(x.dr); dP.push(x.dp); x.dr > 0 ? sobe++ : desce++; }
+    else if (t1(c.antes) !== t1(c.depois)) so1n++;
+    itens.push(x);
+  }
+  const med = (v) => (v.length ? v.reduce((s, y) => s + y, 0) / v.length : 0);
+  itens.sort((p, q) => Math.abs(q.dp) - Math.abs(p.dp) || Math.abs(q.dr) - Math.abs(p.dr));
+  return { n: ch.length, sobe, desce, so1n, medR: med(dR), medP: med(dP), minR: dR.length ? Math.min(...dR) : 0, maxR: dR.length ? Math.max(...dR) : 0, minP: dP.length ? Math.min(...dP) : 0, maxP: dP.length ? Math.max(...dP) : 0, top: itens.slice(0, 15), anuncios: new Set(ch.map((c) => c.id)).size, datas: new Set(ch.map((c) => c.d)).size };
+}
+const sinal = (v, dec = 0) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toLocaleString("pt-BR", { maximumFractionDigits: dec, minimumFractionDigits: dec });
+const fmtFaixas = (p) => (p || []).map((t) => `${t[0]}n ${brl(t[1])}`).join(" · ");
+function htmlResumo(R, titulo, aviso = "") {
+  if (!R.n) return `<h2>${titulo}</h2><p class="mute">Nada muda com essa seleção: as diárias já estão nesse valor.</p>`;
+  return `<h2>${titulo}</h2>${aviso}
+   <div class="kpis"><div><b>${R.n}</b><span>diárias mudam</span><small>${R.anuncios} anúncio${R.anuncios === 1 ? "" : "s"} · ${R.datas} data${R.datas === 1 ? "" : "s"}</small></div>
+   <div><b class="up-t">${R.sobe}</b><span>sobem</span></div><div><b class="dn-t">${R.desce}</b><span>descem</span></div>
+   ${R.so1n ? `<div><b>${R.so1n}</b><span>só a faixa de 1 noite</span></div>` : ""}
+   <div><b>${sinal(R.medP, 1)}%</b><span>variação média</span><small>${sinal(R.medR)} R$</small></div>
+   <div><b>${sinal(R.minP, 1)}% a ${sinal(R.maxP, 1)}%</b><span>mín. e máx.</span><small>${sinal(R.minR)} a ${sinal(R.maxR)} R$</small></div></div>
+   <p class="small mute">Variação calculada na diária mínima (2+ noites). Maiores mudanças:</p>
+   <div class="rtab"><table class="t"><tr><th>Anúncio</th><th>Data</th><th>Antes</th><th>Depois</th><th>Δ</th></tr>
+   ${R.top.map((x) => `<tr><td>${esc(nomeCurto(x.nome))}</td><td>${fmtD(x.d)}</td><td>${fmtFaixas(x.antes)}</td><td><b>${fmtFaixas(x.depois)}</b></td><td class="${x.dr > 0 ? "up-t" : x.dr < 0 ? "dn-t" : ""}">${x.dr ? `${sinal(x.dp, 1)}%<br><span class="small">${sinal(x.dr)} R$</span>` : "1 noite"}</td></tr>`).join("")}</table></div>
+   ${R.n > R.top.length ? `<p class="small mute">… e mais ${R.n - R.top.length} diárias.</p>` : ""}`;
+}
+function abrirModal(html, botao, onOk) {
+  fecharModal();
+  const m = document.createElement("div"); m.className = "modal"; m.id = "modal";
+  m.innerHTML = `<div class="caixa" role="dialog" aria-modal="true">${html}<div class="pe"><span id="m-msg" class="small"></span><button id="m-x">Cancelar</button>${botao ? `<button class="prim" id="m-ok">${botao}</button>` : ""}</div></div>`;
+  document.body.appendChild(m);
+  m.onclick = (e) => { if (e.target === m) fecharModal(); };
+  $("#m-x").onclick = fecharModal;
+  if (botao) $("#m-ok").onclick = onOk;
+  document.addEventListener("keydown", escModal);
+}
+function escModal(e) { if (e.key === "Escape") fecharModal(); }
+function fecharModal() { $("#modal")?.remove(); document.removeEventListener("keydown", escModal); }
+function abrirResumo(P) {
+  abrirModal(htmlResumo(P.R, P.titulo), P.R.n ? `Confirmar e gravar ${P.R.n} diárias na Stays` : null, () => { fecharModal(); executar(P.exec); });
+}
+function nomes() { return Object.fromEntries(S.grid.listings.map((l) => [l.id, l.nome])); }
 function previa() {
   const e = validar(); if (e) return ($("#a-msg").innerHTML = `<span class="msg">${e}</span>`);
-  const ch = simular(); const nome = Object.fromEntries(S.grid.listings.map((l) => [l.id, l.nome]));
-  const fmt = (p) => p.map((t) => `${t[0]}n ${brl(t[1])}`).join(" · ");
-  $("#prev").innerHTML = `<div class="prev"><b>${ch.length} diárias vão mudar</b> (as outras já estão nesse valor).${ch.length ? `<table><tr><th>Anúncio</th><th>Data</th><th>Antes</th><th>Depois</th></tr>${ch.slice(0, 12).map((c) => `<tr><td>${esc((nome[c.id] || "").slice(0, 48))}</td><td>${fmtD(c.d)}</td><td>${fmt(c.antes)}</td><td><b>${fmt(c.depois)}</b></td></tr>`).join("")}</table>${ch.length > 12 ? `<span class="mute">… e mais ${ch.length - 12}.</span>` : ""}` : ""}</div>`;
+  const R = resumir(simular(), nomes());
+  const op = S.op, pct = Number(S.val), sell_ids = [...S.selL], dates = [...S.selD].sort();
+  const tit = { pct: `Prévia: ajuste de ${sinal(pct)}% sobre a base`, one_night_on: `Prévia: liberar 1 noite com +${pct}%`, one_night_off: "Prévia: tirar a liberação de 1 noite", reset: "Prévia: voltar para a diária base", rebase: "Prévia: redefinir a base" }[op];
+  S.prev = { chave: chave(), R, titulo: tit, exec: () => api("apply", { op, pct, one_night_pct: pct, sell_ids, dates }) };
+  atualizarBotaoGravar(); $("#a-msg").innerHTML = "";
+  abrirResumo(S.prev);
 }
-async function gravar() {
-  const e = validar(); if (e) return ($("#a-msg").innerHTML = `<span class="msg">${e}</span>`);
-  const ch = simular();
-  if (!ch.length) return ($("#a-msg").innerHTML = `<span class="mute">Nada muda com essa seleção.</span>`);
-  if (!confirm(`Gravar ${ch.length} diárias na Stays (${S.selL.size} anúncios)?`)) return;
-  await executar(() => api("apply", { op: S.op, pct: Number(S.val), one_night_pct: Number(S.val), sell_ids: [...S.selL], dates: [...S.selD].sort() }));
-}
-async function gravarSugestao() {
-  const dates = [...S.selD].filter((d) => S.sug?.[d]?.pct != null).sort();
+function previaSugestao() {
+  const mapa = {}; for (const d of S.selD) if (S.sug?.[d]?.pct != null) mapa[d] = S.sug[d].pct;
+  const dates = Object.keys(mapa).sort();
   if (!S.selL.size || !dates.length) return ($("#a-msg").innerHTML = `<span class="msg">Nenhuma data selecionada tem regra de automação aplicável.</span>`);
-  if (!confirm(`Gravar a sugestão da automação em ${dates.length} datas × ${S.selL.size} anúncios?`)) return;
-  await executar(() => api("apply_suggest", { region: S.region, from: S.from, to: S.to, dates, sell_ids: [...S.selL] }));
+  const R = resumir(simular("pct", 0, mapa), nomes());
+  const sell_ids = [...S.selL], region = S.region, from = S.from, to = S.to;
+  abrirResumo({ R, titulo: `Prévia: sugestão da automação em ${dates.length} data${dates.length === 1 ? "" : "s"}`, exec: () => api("apply_suggest", { region, from, to, dates, sell_ids }) });
 }
 async function executar(fn) {
   const btns = document.querySelectorAll(".acao button"); btns.forEach((b) => (b.disabled = true));
   $("#a-msg").innerHTML = `<span class="mute">Gravando na Stays… pode levar alguns minutos.</span>`;
   try {
-    const r = await fn();
+    const r = await fn(); S.prev = null;
     const txt = `Pronto: ${r.ok} gravadas, ${r.sem_mudanca} já estavam certas${r.sem_base ? `, ${r.sem_base} sem preço na Stays` : ""}.`;
     await carregarGrade();
     $("#a-msg").innerHTML = r.erro ? `<span class="msg">${r.erro} com erro — reprecificar: ${esc(r.erros.join(" | "))}</span>` : `<span class="okmsg">${txt}</span>`;
