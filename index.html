@@ -1487,7 +1487,8 @@ const EXEMPLOS = ["Quais unidades valem subir a base nos próximos meses?", "Com
 function desenharChat() {
   const el = $("#ia-msgs"); if (!el) return;
   const pcU = IA.limite ? IA.uso / IA.limite : 0;
-  $("#ia-uso").innerHTML = `<span class="${pcU >= 0.8 ? "alto" : ""}" title="Gasto da IA neste mês / limite">${fmtUSD(IA.uso)} de ${fmtUSD(IA.limite)}</span>`;
+  // gasto só aparece perto do limite do mês (pedido de 06/11: o contador ao vivo gerava pressão)
+  $("#ia-uso").innerHTML = pcU >= 0.75 ? `<span class="alto" title="${fmtUSD(IA.uso)} de ${fmtUSD(IA.limite)}">⚠️ ${Math.round(pcU * 100)}% do limite do mês</span>` : "";
   let h = "";
   if (!IA.ativo) h += `<p class="msg">A IA ainda não está configurada no servidor.</p>`;
   if (!IA.itens.length) h += `<div class="ia-vazio"><p>Pergunte sobre ocupação, bases e sugestões, ou peça uma mudança de base. Exemplos:</p>${EXEMPLOS.map((x) => `<button class="ia-ex">${esc(x)}</button>`).join("")}</div>`;
@@ -1540,7 +1541,6 @@ async function enviarIA() {
     IA.conv = r.conversa_id; IA.uso = r.uso_mes_usd; IA.limite = r.limite_usd;
     IA.itens.pop(); IA.itens.push(...(r.itens || []));
     if (r.erro) IA.itens.push({ role: "erro", text: r.erro });
-    if (r.custo_usd) IA.itens.push({ role: "custo", v: r.custo_usd });
   } catch (e) { IA.itens.push({ role: "erro", text: e.message }); }
   IA.enviando = false; desenharChat(); $("#ia-t").focus();
 }
