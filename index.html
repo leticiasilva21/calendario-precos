@@ -280,7 +280,7 @@ h2{font-weight:800;font-size:1.15rem;margin:4px 0 8px}
 .login label{display:grid;gap:4px;font-weight:600}
 .login .link{border:0;background:none;color:var(--navy);text-decoration:underline;font-weight:600;padding:0;justify-self:start}
 .tip{position:fixed;z-index:20;background:var(--navy);color:#fff;border-radius:10px;padding:10px 12px;font-size:.8rem;pointer-events:none;max-width:340px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.25)}
-.tip p{margin:6px 0 0}.tip-h{font-weight:700;font-size:.85rem;margin-bottom:2px;text-transform:capitalize}.tip-m{opacity:.7;font-size:.72rem}
+.tip p{margin:6px 0 0}.tip:has(.tip-h){max-width:320px}.tip-h{font-weight:700;font-size:.85rem;margin-bottom:2px}.tip-m{opacity:.7;font-size:.72rem}
 .tip-t{border-collapse:collapse;margin:6px 0 2px;width:100%}.tip-t th{font-weight:600;opacity:.7;text-align:left;font-size:.7rem;padding:1px 6px 1px 0}.tip-t td{padding:1px 6px 1px 0;border-top:1px solid rgba(255,255,255,.12)}.tip-t td,.tip-t th{white-space:nowrap}.tip:has(.tip-t){width:300px}
 </style>
 </head>
@@ -512,7 +512,7 @@ function legenda() {
   const alt = `<span class="vis-alt">Visão: <button data-vis="limpa" class="${S.detalhado ? "" : "on"}">Limpa</button><button data-vis="detalhada" class="${S.detalhado ? "on" : ""}">Detalhada</button></span>`;
   return `<details class="legenda" id="legenda" ${aberta ? "open" : ""}><summary>Legenda ${alt}</summary><div class="itens">
    ${S.detalhado ? `<span class="it"><span class="escala"></span>Cor da célula: preço atual vs. diária base (verde abaixo até −25%, branco na base, laranja acima até +50%)</span>`
-     : `<span class="it"><i class="pt up" style="position:static;display:inline-block"></i> preço +50% ou mais acima da base · <i class="pt dn" style="position:static;display:inline-block"></i> 20% ou mais abaixo</span><span class="it">Dias sem reserva em <b style="color:#a23a2e">vermelho</b> = 2,5× o intervalo normal ou mais (a venda parou)</span>`}
+     : `<span class="it"><i class="pt up" style="position:static;display:inline-block"></i> preço +50% ou mais acima da base · <i class="pt dn" style="position:static;display:inline-block"></i> 20% ou mais abaixo</span><span class="it">Dias sem reserva: <b>no ritmo · devagar · parada · muito parada</b> (em <b style="color:#a23a2e">vermelho</b> quando parou) — passe o mouse para a explicação</span>`}
    <span class="it"><span class="sw" style="background:var(--occ)"></span>Reservado / sem unidade livre</span>
    <span class="it"><span class="sw" style="background:repeating-linear-gradient(135deg,#eef0f4 0 4px,#d9dde5 4px 6px)"></span>Bloqueado ou manutenção (sem reserva no dia)</span>
    <span class="it"><b style="color:var(--ink)">2/8 livres</b> unidades livres no dia ÷ total do grupo (anúncios com várias unidades) · na linha de ocupação, <b style="color:var(--ink)">51/92</b> = unidades <b>reservadas</b> ÷ em operação (bloqueios e uso do proprietário não contam)</span>
@@ -541,11 +541,11 @@ function desenharGrade() {
   h += `</tr><tr class="sug"><th class="nm">Sugestão da automação${S.detalhado ? "" : ` <button class="lk-sinais" id="tg-sinais" title="Mostrar a linha de vendas dos últimos 7 dias">${S.sinais ? "▾ esconder vendas 7 dias" : "▸ vendas 7 dias"}</button>`}</th>`;
   for (const d of D) { const s = S.sug?.[d]; const mud = s && s.pct != null && s.pct_tabela != null && s.pct !== s.pct_tabela;
     h += `<td class="o small" title="${esc(tipSug(s))}">${s && s.pct != null ? `<span class="b ${s.pct >= 0 ? "up" : "dn"}">${s.pct > 0 ? "+" : ""}${s.pct}%</span>${mud ? `<span class="rea-m">${s.pct < s.pct_tabela ? "▼" : "▲"}</span>` : ""}` : "<span class='mute'>·</span>"}${s?.protegido ? `<span class="prot" title="Período protegido: ${esc(s.protegido.nome)}">🔒</span>` : ""}</td>`; }
-  h += `</tr><tr class="rit1 fixa"><th class="nm">Dias sem reserva <span class="tag">check-in no dia · × o normal</span></th>`;
+  h += `</tr><tr class="rit1 fixa"><th class="nm">Dias sem reserva <span class="tag">com entrada neste dia</span></th>`;
   for (const d of D) { const s = S.sug?.[d]; const alerta = !S.detalhado && s?.vezes != null && s.vezes >= 2.5;
-    h += `<td class="o small ${alerta ? "sv-alerta" : ""}" style="${S.detalhado ? `background:${corSemVenda(s)}` : ""}" title="${esc(tipRecencia(s))}">${s?.sem_venda ?? "—"}${s?.vezes != null ? `<div class="rit-x">${fmtX(s.vezes)}× normal</div>` : ""}</td>`; }
-  h += `</tr><tr class="rit2 fixa"><th class="nm">Vendas nos últimos 7 dias <span class="tag">vs. normal</span></th>`;
-  for (const d of D) { const s = S.sug?.[d]; h += `<td class="o small" style="background:${corRitmo(s?.ritmo)}" title="${esc(tipRitmo(s))}">${s ? `${s.res_7d}${s.ritmo != null ? `<div class="rit-x">${fmtX(s.ritmo)}×</div>` : ""}` : "—"}</td>`; }
+    h += `<td class="o small ${alerta ? "sv-alerta" : ""}" style="${S.detalhado ? `background:${corSemVenda(s)}` : ""}" data-tiprec="${d}">${s?.sem_venda == null ? "—" : `${s.sem_venda} dia${s.sem_venda === 1 ? "" : "s"}`}${s?.vezes != null ? `<div class="rit-x">${ritmoVenda(s.vezes).rotulo}</div>` : ""}</td>`; }
+  h += `</tr><tr class="rit2 fixa"><th class="nm">Vendas nos últimos 7 dias <span class="tag">comparado ao normal</span></th>`;
+  for (const d of D) { const s = S.sug?.[d]; h += `<td class="o small" style="${S.detalhado ? `background:${corRitmo(s?.ritmo)}` : ""}" data-tiprit="${d}">${s ? `${s.res_7d}${s.ritmo != null ? `<div class="rit-x">${ritmoSemana(s.ritmo)}</div>` : ""}` : "—"}</td>`; }
   h += `</tr>`;
   for (const l of L) {
     const cells = G.cells[l.id] || {};
@@ -575,6 +575,11 @@ function desenharGrade() {
   h += `</tbody></table></div></div>` + painelAcao() + `</div>`;
   $("#gridarea").innerHTML = h;
   ligarGrade();
+  const tip = $("#tip");
+  document.querySelectorAll("[data-tiprec],[data-tiprit]").forEach((td) => {
+    td.onmouseenter = (e) => { tip.innerHTML = td.dataset.tiprec ? tipRecHtml(td.dataset.tiprec) : tipRitHtml(td.dataset.tiprit); tip.hidden = !tip.innerHTML; posTip(e); };
+    td.onmousemove = (e) => posTip(e); td.onmouseleave = () => (tip.hidden = true);
+  });
   document.querySelectorAll("[data-vis]").forEach((b) => b.onclick = (e) => { e.preventDefault(); S.detalhado = b.dataset.vis === "detalhada"; try { localStorage.setItem("cp-visao", S.detalhado ? "detalhada" : "limpa"); } catch {} desenharGrade(); });
   const bs = $("#tg-sinais"); if (bs) bs.onclick = (e) => { e.stopPropagation(); S.sinais = !S.sinais; try { localStorage.setItem("cp-sinais", S.sinais ? "1" : "0"); } catch {} desenharGrade(); };
 }
@@ -731,7 +736,7 @@ function tipCelula(d, c) {
     else t += " O preço no ar já está nesse nível.";
     linhas.push(t);
   }
-  return `<div class="tip-h">${DIAS[dowOf(d)]}, ${fmtD(d)}</div><div>${sit}</div>${tabela}${linhas.map((l) => `<p>${l}</p>`).join("")}<p class="tip-m">Base = preço de referência do período. A automação e os ajustes manuais trabalham em % sobre ela.</p>`;
+  return `<div class="tip-h">${DIAS[dowOf(d)][0].toUpperCase() + DIAS[dowOf(d)].slice(1)}, ${fmtD(d)}</div><div>${sit}</div>${tabela}${linhas.map((l) => `<p>${l}</p>`).join("")}<p class="tip-m">Base = preço de referência do período. A automação e os ajustes manuais trabalham em % sobre ela.</p>`;
 }
 function posTip(e) { const t = $("#tip"); t.style.left = Math.max(8, Math.min(e.clientX + 14, innerWidth - t.offsetWidth - 8)) + "px"; t.style.top = Math.max(8, Math.min(e.clientY + 14, innerHeight - t.offsetHeight - 8)) + "px"; }
 
@@ -1200,6 +1205,39 @@ function tipSug(s) {
   if (!s) return "";
   const p = (v) => (v == null ? "sem regra" : `${v > 0 ? "+" : ""}${v}%`);
   return `Tabela ${s.tabela_propria ? "própria da região" : `do grupo ${s.grupo ?? "—"}`} (ocupação ${s.occ ?? "—"}% · ${s.lead} dias): ${p(s.pct_tabela)}` + (s.motivo?.length ? ` | ${s.motivo.join(" | ")}` : "") + ` | Sugestão final: ${p(s.pct)}`;
+}
+// linguagem simples para os sinais de venda (pedido de 06/11): palavras no lugar de "× normal"
+function ritmoVenda(x) {
+  if (x < 1.5) return { rotulo: "no ritmo", freio: "segue a tabela normalmente" };
+  if (x < 2.5) return { rotulo: "devagar", freio: "aplica só 75% da subida da tabela" };
+  if (x < 4) return { rotulo: "parada", freio: "aplica só metade da subida da tabela" };
+  return { rotulo: "muito parada", freio: "não sobe o preço (a subida da tabela é cancelada)" };
+}
+const ritmoSemana = (r) => r >= 2 ? "bem acima" : r >= 1.3 ? "acima" : r >= 0.8 ? "normal" : r >= 0.5 ? "abaixo" : "bem abaixo";
+const dias = (n) => `${fmtX(n)} dia${n === 1 ? "" : "s"}`;
+function tipRecHtml(d) {
+  const s = S.sug?.[d]; if (!s) return "";
+  const DIAS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+  let h = `<div class="tip-h">Dias sem reserva · ${DIAS[dowOf(d)]}, ${fmtD(d)}</div>`;
+  h += `<p>Faz <b>${dias(s.sem_venda ?? 0)}</b> que ninguém reserva uma estadia com <b>entrada neste dia</b>${s.ultima_res ? ` (última reserva feita em ${fmtD(s.ultima_res)})` : " (nenhuma reserva ainda)"}.</p>`;
+  if (s.intervalo) {
+    h += `<p>Nesta região, a essa distância da data, costuma entrar <b>uma reserva a cada ${dias(s.intervalo)}</b>.</p>`;
+    if (s.vezes != null) {
+      const r = ritmoVenda(s.vezes);
+      h += `<p>${s.vezes >= 1.5 ? `Ou seja, está <b>${fmtX(Math.round(s.vezes))} vezes mais devagar</b> que o normal` : "Ou seja, está dentro do normal"} → <b>${r.rotulo}</b>.</p>`;
+      h += `<p><b>O que a automação faz:</b> ${r.freio}${s.protegido ? " — exceto em período protegido, onde não há freio" : ""}.</p>`;
+    }
+  } else h += `<p>Pouco histórico na região para saber o que é normal; a automação não freia.</p>`;
+  h += `<p class="tip-m">Escala: no ritmo (até 1,5× o normal) · devagar (até 2,5×) · parada (até 4×) · muito parada (acima de 4×).</p>`;
+  return h;
+}
+function tipRitHtml(d) {
+  const s = S.sug?.[d]; if (!s) return "";
+  let h = `<div class="tip-h">Vendas dos últimos 7 dias · ${fmtD(d)}</div><p><b>${s.res_7d}</b> reserva${s.res_7d === 1 ? "" : "s"} feita${s.res_7d === 1 ? "" : "s"} na última semana ocupando esta noite.</p>`;
+  if (s.ritmo == null) return h + `<p>Pouco histórico para comparar.</p>`;
+  h += `<p>O normal, a essa distância da data, é <b>${fmtX(s.normal_7d)}</b> por semana → vendas <b>${ritmoSemana(s.ritmo)}</b> do normal.</p>`;
+  h += `<p><b>O que a automação faz:</b> ${s.ritmo >= 3 ? "soma +20 pontos à sugestão (vendendo 3× o normal)" : s.ritmo >= 2 ? "soma +10 pontos à sugestão (vendendo 2× o normal)" : "nada a mais (acelera só a partir de 2× o normal)"}.</p>`;
+  return h;
 }
 function tipRecencia(s) {
   if (!s) return "";
