@@ -1228,7 +1228,7 @@ async function carregarAuto(msg) {
   try { const r = await api("auto_status"); AUTOCFG = r.config; AUTOCFG_ORIG = JSON.stringify(soAuto(AUTOCFG)); AUTO_RUNS = r.runs; desenharAuto(msg); }
   catch (e) { $("#autob").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
 }
-const soAuto = (c) => ({ ligado: c.ligado, modo: c.modo, horarios: c.horarios, horizonte: c.horizonte, passo_max: c.passo_max, min_dif: c.min_dif, trava_manual_dias: c.trava_manual_dias, unidades_min: c.unidades_min, max_diarias_rodada: c.max_diarias_rodada, regioes_excluidas: c.regioes_excluidas, protegidos: c.protegidos || [] });
+const soAuto = (c) => ({ ligado: c.ligado, modo: c.modo, horarios: c.horarios, horizonte: c.horizonte, passo_max: c.passo_max, passo_livre_dias: c.passo_livre_dias ?? 7, min_dif: c.min_dif, trava_manual_dias: c.trava_manual_dias, unidades_min: c.unidades_min, max_diarias_rodada: c.max_diarias_rodada, regioes_excluidas: c.regioes_excluidas, protegidos: c.protegidos || [] });
 function desenharAuto(msg) {
   const el = $("#autob"); if (!el) return; const c = AUTOCFG;
   const linha = (id, rot, val, dica, w = 70) => `<label class="au-l"><span>${rot}</span><input id="${id}" type="number" value="${val}" style="width:${w}px"><small>${dica}</small></label>`;
@@ -1245,6 +1245,7 @@ function desenharAuto(msg) {
      <label class="au-l"><span>Horários</span><input id="au-hor" value="${c.horarios.join(", ")}" style="width:90px"><small>horas cheias, separadas por vírgula</small></label>
      ${linha("au-hz", "Olhar para frente", c.horizonte, "dias a partir de hoje")}
      ${linha("au-passo", "Passo máximo", c.passo_max, "pontos de % por rodada (sobe/desce aos poucos)")}
+     ${linha("au-ult", "Última hora", c.passo_livre_dias ?? 7, "dias antes do check-in em que vai direto à sugestão, sem passo")}
      ${linha("au-min", "Diferença mínima", c.min_dif, "pontos: abaixo disso não mexe")}
      ${linha("au-trava", "Trava do ajuste manual", c.trava_manual_dias, "dias em que a noite ajustada à mão fica fora")}
      ${linha("au-uni", "Unidades mínimas", c.unidades_min, "regiões menores ficam de fora")}
@@ -1266,7 +1267,7 @@ function desenharAuto(msg) {
   $("#pr-save").onclick = async () => { try { await api("auto_cfg_save", { config: soAuto(AUTOCFG) }); S.grid = null; await carregarAuto(`<span class="okmsg">Períodos protegidos salvos.</span>`); } catch (e) { $("#pr-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; } };
   $("#au-toggle").onclick = async () => { try { await api("auto_cfg_save", { config: { ...soAuto(AUTOCFG), ligado: !AUTOCFG.ligado } }); await carregarAuto(`<span class="okmsg">Automação ${AUTOCFG.ligado ? "pausada" : "ligada"}.</span>`); } catch (e) { alert(e.message); } };
   $("#au-save").onclick = async () => {
-    const cfg = { ...soAuto(AUTOCFG), modo: $("#au-modo").value, horarios: $("#au-hor").value.split(/[,\s]+/).filter(Boolean), horizonte: $("#au-hz").value, passo_max: $("#au-passo").value, min_dif: $("#au-min").value,
+    const cfg = { ...soAuto(AUTOCFG), modo: $("#au-modo").value, horarios: $("#au-hor").value.split(/[,\s]+/).filter(Boolean), horizonte: $("#au-hz").value, passo_max: $("#au-passo").value, passo_livre_dias: $("#au-ult").value, min_dif: $("#au-min").value,
       trava_manual_dias: $("#au-trava").value, unidades_min: $("#au-uni").value, max_diarias_rodada: $("#au-max").value, regioes_excluidas: [...$("#au-exc").selectedOptions].map((o) => o.value) };
     try { await api("auto_cfg_save", { config: cfg }); await carregarAuto(`<span class="okmsg">Parâmetros salvos.</span>`); } catch (e) { $("#au-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; }
   };
@@ -1425,7 +1426,7 @@ function telaAjuda() {
       <p>Duas vezes por dia o servidor compara a sugestão de cada noite (próximos <b>90 dias</b>) com o preço atual e <b>grava na Stays</b> o que mudar, região por região. Tudo fica no Histórico como "automação (rodada N)", com Desfazer. Dá para voltar ao modo teste (só registra) em Parâmetros.</p></div>
      <div><h4>Sobe aos poucos</h4>
       <div class="aj-steps2"><div style="height:20%"><span>0%</span></div><div style="height:45%"><span>+20%</span></div><div style="height:70%"><span>+40%</span></div><div style="height:85%"><span>+50%</span></div></div>
-      <p class="small mute">Sugestão +50%: no máximo 20 pontos por rodada. Diferença menor que 5 pontos não mexe. Ajuste manual vira a nova base e a automação segue em cima dele.</p>
+      <p class="small mute">Sugestão +50%: no máximo 20 pontos por rodada. <b>Última hora</b> (até 7 dias do check-in): vai direto à sugestão. Diferença menor que 5 pontos não mexe. Ajuste manual vira a nova base e a automação segue em cima dele.</p>
       <h4>🔒 Períodos protegidos</h4><p class="small">Natal/Réveillon, janeiro, Carnaval e Semana Santa: a automação <b>só sobe</b> (nunca baixa, sem freio). Na grade aparece 🔒 na linha da sugestão.</p>
       <h4>✦ Assistente (IA)</h4><p class="small">Botão laranja no canto da tela. Pergunte sobre ocupação, bases e sugestões, ou peça "suba 10% a base do X em dezembro" / "copie a base do X para o Y com −10%". A IA só <b>propõe</b>: aparece um cartão e nada vai para a Stays sem você clicar em <b>Confirmar e gravar</b>. Gasto do mês aparece no topo do chat (limite US$ 40).</p>
       <h4>📈 Sugestões de base</h4><p class="small">A aba <i>Sugestões de base</i> lista as unidades que, nos próximos 6 meses, já venderam bem acima da região e do mesmo período do ano passado (mesma antecedência). Sugere +10% ou +15% na <b>base</b> do mês; você marca, ajusta o % e aplica com prévia. A automação segue por cima da nova base.</p>
