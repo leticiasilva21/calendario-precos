@@ -278,7 +278,9 @@ h2{font-weight:800;font-size:1.15rem;margin:4px 0 8px}
 .login img{height:40px;justify-self:start}
 .login label{display:grid;gap:4px;font-weight:600}
 .login .link{border:0;background:none;color:var(--navy);text-decoration:underline;font-weight:600;padding:0;justify-self:start}
-.tip{position:fixed;z-index:20;background:var(--navy);color:#fff;border-radius:8px;padding:8px 10px;font-size:.78rem;pointer-events:none;max-width:320px;line-height:1.4}
+.tip{position:fixed;z-index:20;background:var(--navy);color:#fff;border-radius:10px;padding:10px 12px;font-size:.8rem;pointer-events:none;max-width:340px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.tip p{margin:6px 0 0}.tip-h{font-weight:700;font-size:.85rem;margin-bottom:2px;text-transform:capitalize}.tip-m{opacity:.7;font-size:.72rem}
+.tip-t{border-collapse:collapse;margin:6px 0 2px;width:100%}.tip-t th{font-weight:600;opacity:.7;text-align:left;font-size:.7rem;padding:1px 6px 1px 0}.tip-t td{padding:1px 6px 1px 0;border-top:1px solid rgba(255,255,255,.12)}.tip-t td,.tip-t th{white-space:nowrap}.tip:has(.tip-t){width:300px}
 </style>
 </head>
 <body>
@@ -699,9 +701,37 @@ function ligarGrade() {
   pintarSelecao();
 }
 function tipCelula(d, c) {
-  return `<b>${fmtD(d)}</b> · ${c[0] > 1 ? `${c[1]} de ${c[0]} unidades livres` : c[1] > 0 ? "livre" : Number(c[6] || 0) > 0 && !Number(c[7] || 0) ? "bloqueado / manutenção" : Number(c[7] || 0) > 0 ? "reservado" : "fechado"}${c[0] > 1 && (Number(c[6] || 0) || Number(c[7] || 0)) ? ` (${c[7] || 0} reservada${c[7] == 1 ? "" : "s"}, ${c[6] || 0} bloqueada${c[6] == 1 ? "" : "s"})` : ""}<br><b>Atual</b><br>${tierTxt(c[2])}<br><b>Base</b><br>${tierTxt(c[3])}${c[4] ? `<br>Ajuste: ${c[4] > 0 ? "+" : ""}${c[4]}%` : ""}${c[5] != null ? `<br>1 noite liberada: +${c[5]}%` : ""}${(() => { const dv = desvioPct(c[2], c[3]?.length ? c[3] : c[2]); return dv != null && Math.abs(dv) >= 0.5 ? `<br>Atual vs. base: ${dv > 0 ? "+" : ""}${dv.toFixed(0)}%` : ""; })()}${S.sug?.[d]?.pct != null ? `<br>Sugestão da automação: ${S.sug[d].pct > 0 ? "+" : ""}${S.sug[d].pct}% sobre a base` : ""}`;
+  // balão em linguagem simples (pedido de 06/11): situação → preços no ar × base → o que significa → o que a automação vai fazer
+  const DIAS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+  const units = c[0] ?? 1, livres = c[1], res = Number(c[7] || 0), bloq = Number(c[6] || 0);
+  const atual = c[2] || [], base = c[3]?.length ? c[3] : atual, pct = Number(c[4] || 0), one = c[5] ?? null;
+  const pl = (n, s1, s2) => `${n} ${n === 1 ? s1 : s2}`;
+  let sit;
+  if (units > 1) sit = livres > 0 ? `<b>${pl(livres, "unidade livre", "unidades livres")}</b> de ${units} deste grupo` : `<b>Esgotado</b>: nenhuma das ${units} unidades livre`;
+  else sit = livres > 0 ? "<b>Livre</b> para venda" : res ? "<b>Reservado</b>" : bloq ? "<b>Bloqueado</b> (manutenção ou uso do proprietário)" : "<b>Fechado</b> para venda";
+  if (units > 1 && (res || bloq)) sit += ` <span class="tip-m">(${pl(res, "reservada", "reservadas")}, ${pl(bloq, "bloqueada", "bloqueadas")})</span>`;
+  const faixas = [...new Set([...atual.map((t) => t[0]), ...base.map((t) => t[0])])].sort((a, b) => a - b);
+  const val = (p, k) => { const t = (p || []).find((x) => x[0] === k); return t ? brl(t[1]) : "—"; };
+  const nome = (k) => k === 1 ? "1 noite" : `${k}+ noites`;
+  const tabela = `<table class="tip-t"><tr><th>Estadia</th><th>No ar hoje</th><th>Base</th></tr>${faixas.map((k) => `<tr><td>${nome(k)}</td><td><b>${val(atual, k)}</b></td><td>${val(base, k)}</td></tr>`).join("")}</table>`;
+  const dv = desvioPct(atual, base);
+  const linhas = [];
+  if (dv != null && Math.abs(dv) >= 0.5) linhas.push(`O preço no ar está <b>${Math.abs(Math.round(dv))}% ${dv > 0 ? "acima" : "abaixo"} da base</b>${pct ? ` (ajuste gravado de ${pct > 0 ? "+" : ""}${pct}%)` : ""}.`);
+  else linhas.push("O preço no ar é igual à base (sem ajuste).");
+  if (one != null) linhas.push(`Estadia de 1 noite liberada, ${one}% acima do preço de 2 noites.`);
+  const sg = S.sug?.[d];
+  if (sg?.pct != null) {
+    const prop = minTier(calcular(base, sg.pct, one)), mt = minTier(atual);
+    let t = `A automação sugere <b>${sg.pct > 0 ? "+" : ""}${sg.pct}% sobre a base</b> para este dia${prop ? ` (≈ ${brl(prop[1])} na menor estadia)` : ""}.`;
+    if (!(livres > 0)) t += " Como a noite já está vendida ou fechada, nada muda.";
+    else if (sg.protegido && prop && mt && prop[1] < mt[1]) t += ` Período protegido (${esc(sg.protegido.nome)}): só sobe, então o preço fica como está.`;
+    else if (prop && mt && Math.abs(prop[1] - mt[1]) / mt[1] >= 0.05) t += ` Na próxima rodada automática (7h ou 14h), o preço ${prop[1] > mt[1] ? "sobe" : "desce"} para esse valor.`;
+    else t += " O preço no ar já está nesse nível.";
+    linhas.push(t);
+  }
+  return `<div class="tip-h">${DIAS[dowOf(d)]}, ${fmtD(d)}</div><div>${sit}</div>${tabela}${linhas.map((l) => `<p>${l}</p>`).join("")}<p class="tip-m">Base = preço de referência do período. A automação e os ajustes manuais trabalham em % sobre ela.</p>`;
 }
-function posTip(e) { const t = $("#tip"); t.style.left = Math.min(e.clientX + 14, innerWidth - 330) + "px"; t.style.top = Math.min(e.clientY + 14, innerHeight - 200) + "px"; }
+function posTip(e) { const t = $("#tip"); t.style.left = Math.max(8, Math.min(e.clientX + 14, innerWidth - t.offsetWidth - 8)) + "px"; t.style.top = Math.max(8, Math.min(e.clientY + 14, innerHeight - t.offsetHeight - 8)) + "px"; }
 
 function validar() {
   const v = Number(S.val), L = S.limites;
