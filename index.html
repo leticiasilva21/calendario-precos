@@ -59,6 +59,7 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .g tr.rit2 td{border-bottom:2px solid var(--line)}
 .g .rit-x{font-size:.66rem;color:var(--mute);font-weight:700;line-height:1}
 .prot{font-size:.62rem;margin-left:2px}
+.sgx{display:block;font-size:.64rem;font-weight:700;color:#8a5a00;line-height:1.1}
 .rea-m{font-size:.6rem;margin-left:2px;color:var(--navy)}
 .rea-on{display:flex;gap:8px;align-items:center;font-weight:700;margin:6px 0 10px}
 .rea-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px}
@@ -446,7 +447,7 @@ function legenda() {
    <span class="it"><span class="sw" style="background:repeating-linear-gradient(135deg,#eef0f4 0 4px,#d9dde5 4px 6px)"></span>Bloqueado ou manutenção (sem reserva no dia)</span>
    <span class="it"><b style="color:var(--ink)">2 livres</b> unidades livres no dia, em anúncios que são grupo de unidades · na linha de ocupação, <b style="color:var(--ink)">51/92</b> = ocupadas ÷ em operação</span>
    <span class="it"><span class="sw" style="background:var(--orange-soft);box-shadow:inset 0 -3px 0 var(--orange)"></span>Data selecionada (cabeçalho com faixa laranja)</span>
-   <span class="it"><span class="sg"><s>219</s> <b style="color:var(--ink)">197</b></span> preço atual (riscado) → sugestão da automação</span>
+   <span class="it"><b style="color:var(--ink)">R$ 219</b> <span class="sgx">sug. 197</span> preço atual em destaque · embaixo, o preço que a sugestão da automação daria</span>
    <span class="it"><span class="b up">+50%</span><span class="rea-m">▼</span> sugestão freada (▼) ou acelerada (▲) pelas vendas · passe o mouse para ver o motivo</span>
    ${S.prefixo ? `<span class="it">Nomes sem o prefixo comum da região: <b style="color:var(--ink)">${esc(S.prefixo)}</b></span>` : ""}
    <span class="it"><span class="b up">+10%</span><span class="b n1">1N</span> ajuste gravado · 1 noite liberada</span></div></details>`;
@@ -488,12 +489,12 @@ function desenharGrade() {
       const sg = S.sug?.[d]; let sgTxt = "";
       if (!full && sg && sg.pct != null && base?.length) {
         const prop = minTier(calcular(base, sg.pct, one ?? null));
-        if (prop && mt && prop[1] !== mt[1]) sgTxt = `<span class="sg"><s>${num(mt[1])}</s> <b>${num(prop[1])}</b></span>`;
+        if (prop && mt && prop[1] !== mt[1]) sgTxt = `<span class="sgx">sug. ${num(prop[1])}</span>`;
       }
       const bloq = full && Number(c?.[6] || 0) > 0 && !Number(c?.[7] || 0); // c[6] bloqueadas, c[7] reservadas (tabela de reservas)
       const badges = (pct ? `<span class="b ${pct > 0 ? "up" : "dn"}">${pct > 0 ? "+" : ""}${pct}%</span>` : "") + (one != null ? `<span class="b n1">1N</span>` : "") + (units > 1 ? `<span class="b av" title="${avail ?? "?"} de ${units} unidades do grupo livres">${avail ?? "?"} livre${avail === 1 ? "" : "s"}</span>` : "");
       const bg = corDesvio(dv);
-      h += `<td class="c ${full ? (bloq ? "blk" : "full") : ""} ${sel ? "sel" : ""}" data-c="${l.id}|${d}"${bg ? ` style="background:${bg}"` : ""}>${sgTxt || `<span class="p">${mt ? brl(mt[1]) : "—"}</span>`}${badges}</td>`;
+      h += `<td class="c ${full ? (bloq ? "blk" : "full") : ""} ${sel ? "sel" : ""}" data-c="${l.id}|${d}"${bg ? ` style="background:${bg}"` : ""}><span class="p">${mt ? brl(mt[1]) : "—"}</span>${sgTxt}${badges}</td>`;
     }
     h += `</tr>`;
   }
@@ -525,7 +526,7 @@ function painelConteudo() {
      <div class="pa-k"><span>ocupação média da região</span><b>${occM == null ? "—" : Math.round(occM) + "%"}</b></div>
      ${pers ? `<div class="pa-b"><button id="p-filtro">Voltar ao filtro do topo</button></div>` : `<p class="pa-dica">Mude o período, os dias da semana ou desmarque imóveis para ajustar. Para escolher noites específicas, arraste na grade.</p>`}</div>
    <div class="pa-acoes">
-     ${linha("pct", "Ajustar diária", `<label class="pa-in"><input id="p-pct" type="number" step="1" value="${esc(S.vPct ?? "")}" placeholder="-10"><span>%</span></label>`, `sobre a base · ${L.PCT_MIN}% a +${L.PCT_MAX}%`)}
+     ${linha("pct", "Ajustar diária", `<label class="pa-in"><input id="p-pct" type="number" step="1" value="${esc(S.vPct ?? "")}" placeholder="-10"><span>%</span></label>`, `sobre a base · vira a nova base · ${L.PCT_MIN}% a +${L.PCT_MAX}%`)}
      ${linha("one_night_on", "Liberar 1 noite", `<label class="pa-in"><input id="p-1n" type="number" step="1" min="0" value="${esc(S.v1n ?? "")}" placeholder="30"><span>%</span></label>`, "acima da diária mínima")}
      ${linha("one_night_off", "Tirar 1 noite", "", "remove a faixa de 1 noite")}
      ${linha("reset", "Voltar à base", "", "zera ajuste e 1 noite")}
@@ -1232,7 +1233,8 @@ function telaAjuda() {
           <div><span>Amanhã aplica</span><b>+10%</b><em>R$ 220</em></div>
           <div class="x"><span>Nunca vira</span><b>+30% e +10%</b><em>R$ 286</em></div>
         </div>
-        <p class="small mute">O ajuste novo <b>substitui</b> o anterior. A conta parte sempre da base.</p></div>
+        <p class="small mute">O ajuste novo <b>substitui</b> o anterior. A conta parte sempre da base.</p>
+        <p class="small"><b>Ajuste manual vira a nova base:</b> aplicou −20% à mão? O preço resultante passa a ser a base daquelas noites e a automação parte dele. O Desfazer devolve a base anterior.</p></div>
       <div><h4>Faixas de noites</h4>
         <table class="aj-t"><tr><th>Mín. noites</th><th>Base</th><th>Com +30%</th></tr>
           <tr><td>2+</td><td>R$ 200</td><td><b>R$ 260</b></td></tr><tr><td>7+</td><td>R$ 180</td><td><b>R$ 234</b></td></tr><tr><td>15+</td><td>R$ 170</td><td><b>R$ 221</b></td></tr></table>
@@ -1251,7 +1253,7 @@ function telaAjuda() {
        <tr class="hd"><th>${n(2)} Sugestão</th>${cel(`<span class="b up">+50%</span>`)}${cel(`<span class="b up">+23%</span><span class="rea-m">▼</span>`)}${cel(`<span class="b up">0%</span>`)}${cel(`<span class="b dn">−15%</span>`)}</tr>
        <tr class="hd"><th>${n(3)} Dias sem reserva</th>${cel("0<small>0× normal</small>")}${cel("5<small>1,7× normal</small>", "#fdf3d9")}${cel("2<small>0,7× normal</small>")}${cel("12<small>4× normal</small>", "#fbd5d1")}</tr>
        <tr class="hd"><th>${n(4)} Vendas 7 dias</th>${cel("6<small>2,1×</small>", "#c9ebd6")}${cel("3<small>1×</small>")}${cel("1<small>0,4×</small>", "#fbd5d1")}${cel("0<small>0×</small>", "#fbd5d1")}</tr>
-       <tr><th>${n(5)} Apto 101</th>${cel(`<b>R$ 300</b><span class="b up">+50%</span>`, "rgba(242,107,46,.4)")}${cel(`<span class="sg"><s>300</s> <b>246</b></span>`, "rgba(242,107,46,.4)")}${cel(`<b>R$ 200</b>`, "")}${cel(`<b>R$ 170</b><span class="b dn">−15%</span>`, "rgba(29,122,70,.3)")}</tr>
+       <tr><th>${n(5)} Apto 101</th>${cel(`<b>R$ 300</b><span class="b up">+50%</span>`, "rgba(242,107,46,.4)")}${cel(`<b>R$ 300</b><span class="sgx">sug. 246</span>`, "rgba(242,107,46,.4)")}${cel(`<b>R$ 200</b>`, "")}${cel(`<b>R$ 170</b><span class="b dn">−15%</span>`, "rgba(29,122,70,.3)")}</tr>
        <tr><th>${n(6)} Apto 102</th>${cel("", "", "", "res")}${cel("", "", "", "blk")}${cel(`<b>R$ 210</b>`, "")}${cel(`<b>R$ 210</b>`, "")}</tr>
       </table>
      </div>
@@ -1260,7 +1262,7 @@ function telaAjuda() {
       <li>${n(2)} <b>Sugestão da automação</b>: % sobre a base. <b>▼</b> = freada pelas vendas, <b>▲</b> = acelerada. Mouse em cima mostra o porquê.</li>
       <li>${n(3)} <b>Dias sem reserva</b>: há quantos dias não entra reserva <b>com check-in naquele dia</b> (e quantas vezes o normal da região).</li>
       <li>${n(4)} <b>Vendas 7 dias</b>: reservas da última semana para a noite e o ritmo vs. o normal.</li>
-      <li>${n(5)} <b>Cor da célula</b>: laranja = acima da base, verde = abaixo, branco = na base. <s>300</s> <b>246</b> = preço atual → preço que a sugestão daria.</li>
+      <li>${n(5)} <b>Cor da célula</b>: laranja = acima da base, verde = abaixo, branco = na base. <b>R$ 300</b> <span class="sgx">sug. 246</span> = preço atual em destaque; embaixo, o preço que a sugestão daria.</li>
       <li>${n(6)} Cinza = reservado · hachurado = bloqueado/manutenção.</li>
      </ol>
     </div>
@@ -1303,7 +1305,7 @@ function telaAjuda() {
       <p>Duas vezes por dia o servidor compara a sugestão de cada noite (próximos <b>90 dias</b>) com o ajuste em vigor e anota o que mudaria. <b>Hoje não grava</b> — só registra.</p></div>
      <div><h4>Sobe aos poucos</h4>
       <div class="aj-steps2"><div style="height:20%"><span>0%</span></div><div style="height:45%"><span>+20%</span></div><div style="height:70%"><span>+40%</span></div><div style="height:85%"><span>+50%</span></div></div>
-      <p class="small mute">Sugestão +50%: no máximo 20 pontos por rodada. Diferença menor que 5 pontos não mexe. Noite ajustada à mão fica de fora por 7 dias.</p>
+      <p class="small mute">Sugestão +50%: no máximo 20 pontos por rodada. Diferença menor que 5 pontos não mexe. Ajuste manual vira a nova base e a automação segue em cima dele.</p>
       <h4>🔒 Períodos protegidos</h4><p class="small">Natal/Réveillon, janeiro, Carnaval e Semana Santa: a automação <b>só sobe</b> (nunca baixa, sem freio). Na grade aparece 🔒 na linha da sugestão.</p></div>
     </div>
     ${onde("Automação → Rodadas automáticas → Ver (por região e diária a diária)", "Automação → Rodadas automáticas → Parâmetros · botão Pausar")}
@@ -1312,7 +1314,7 @@ function telaAjuda() {
    <section class="aj-s">
     <h3>6. Combinados da equipe</h3>
     <div class="aj-do">
-     <div class="ok"><b>✓ Faça</b><ul><li>Ajuste preço só pela ferramenta.</li><li>Use a prévia antes de gravar.</li><li>Confira o Histórico em caso de dúvida.</li><li>Mude a tabela da região quando a sugestão parecer errada.</li></ul></div>
+     <div class="ok"><b>✓ Faça</b><ul><li>Ajuste preço só pela ferramenta.</li><li>Use a prévia antes de gravar.</li><li>Confira o Histórico em caso de dúvida.</li><li>Mude a tabela da região quando a sugestão parecer errada.</li><li>Lembre: ajuste manual vira a nova base daquelas noites.</li></ul></div>
      <div class="no"><b>✗ Não faça</b><ul><li>Mexer em preço direto na Stays.</li><li>Usar <i>Condição (%)</i> / Promoções e Acréscimos da Stays — ela multiplica o preço por cima.</li><li>Gravar em massa sem olhar o resumo.</li></ul></div>
     </div>
    </section>
