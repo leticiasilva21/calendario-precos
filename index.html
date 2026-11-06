@@ -1498,11 +1498,27 @@ function cartaoProposta(p) {
     <div class="ia-tw"><table class="ia-tab"><tr><th>Anúncio</th><th>Período</th><th>Base</th><th>Noites</th><th>Base média (2 noites)</th></tr>${linhas}</table></div>
     ${p.status === "pendente" ? `<div class="ia-card-b"><button class="prim" data-pok="${p.id}">Confirmar e gravar ${r.noites} noites</button><button data-pno="${p.id}">Descartar</button></div>` : resTxt ? `<p class="small">${resTxt}</p>` : ""}</div>`;
 }
+function contextoTela() { // o que a pessoa está vendo, para "aqui", "nesse período", "nossas unidades"
+  const ABA = { cal: "Calendário", auto: "Automação", base: "Sugestões de base", log: "Histórico", ajuda: "Como funciona" };
+  const p = [`aba ${ABA[S.tab] || S.tab}`];
+  if (S.tab === "cal" || S.tab === "auto" || S.tab === "log") {
+    if (S.region) p.push(`região ${S.region}`);
+    if (S.tab === "cal" && S.from && S.to) p.push(`período ${dBR(S.from)} a ${dBR(S.to)}`);
+    if (S.tab === "cal" && S.grid?.listings) {
+      const ls = S.grid.listings.filter((l) => S.selL.has(l.id));
+      const tot = S.grid.listings.length;
+      p.push(ls.length === tot ? `todos os ${tot} anúncios da região` : `${ls.length} de ${tot} anúncios selecionados${ls.length <= 30 ? ": " + ls.map((l) => l.code || l.nome).join(", ") : ""}`);
+      const dias = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"]; if (S.dows.size < 7) p.push(`só ${[...S.dows].sort().map((d) => dias[d]).join("/")}`);
+    }
+  }
+  if (S.tab === "base") { if (SB.reg) p.push(`região ${SB.reg}`); p.push(`prioridades ${[...SB.prio].join("/")}`); if (SB.marc.size) p.push(`${SB.marc.size} unidade(s) marcada(s)`); }
+  return p.join("; ").slice(0, 900);
+}
 async function enviarIA() {
   const t = $("#ia-t").value.trim(); if (!t || IA.enviando) return;
   $("#ia-t").value = ""; IA.enviando = true; IA.itens.push({ role: "user", text: t }); desenharChat();
   try {
-    const r = await api("ia_chat", { conversa_id: IA.conv, texto: t });
+    const r = await api("ia_chat", { conversa_id: IA.conv, texto: t, contexto: contextoTela() });
     IA.conv = r.conversa_id; IA.uso = r.uso_mes_usd; IA.limite = r.limite_usd;
     IA.itens.pop(); IA.itens.push(...(r.itens || []));
     if (r.erro) IA.itens.push({ role: "erro", text: r.erro });
