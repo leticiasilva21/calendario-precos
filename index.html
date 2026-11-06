@@ -194,6 +194,11 @@ tr.rsel td{background:var(--orange-soft)}
 .ia-m.ela{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:4px}
 .ia-m.erro{align-self:stretch;background:#fdecea;color:#8a1c12;font-size:.82rem}
 .ia-tw{overflow-x:auto;margin:4px 0}.ia-tab{border-collapse:collapse;font-size:.78rem}.ia-tab th,.ia-tab td{border:1px solid var(--line);padding:3px 6px;text-align:left;white-space:nowrap}.ia-tab th{background:#fff}
+.ia-esc{display:flex;gap:6px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);font-size:.78rem;color:var(--mute)}
+.ia-esc button{font-size:.76rem;border:1px solid var(--line);background:#fff;border-radius:14px;padding:3px 9px;cursor:pointer}.ia-esc button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.ia-bar{display:inline-block;min-width:64px;padding:1px 5px;border-radius:4px;background:linear-gradient(90deg,rgba(242,107,46,.32) var(--p),transparent var(--p)),#f3f4f7}
+.ia-chip{display:inline-block;font-weight:700;padding:0 6px;border-radius:8px}.ia-chip.up{background:#fde2d3;color:#a2441a}.ia-chip.dn{background:#dcefe2;color:#2c6b3a}
+.ia-custo{align-self:flex-start;font-size:.68rem;color:var(--mute);margin:-4px 0 2px 4px}
 .ia-card{align-self:stretch;border:2px solid var(--orange);border-radius:12px;padding:10px;background:#fff7f2}.ia-card.executada{border-color:#2c6b3a;background:#e4f5e8}.ia-card.descartada{border-color:var(--line);background:var(--panel);opacity:.75}.ia-card.erro{border-color:#b3261e}
 .ia-card-t{font-weight:700;display:flex;gap:6px;align-items:center;flex-wrap:wrap}.ia-st{font-size:.72rem;font-weight:700;padding:1px 7px;border-radius:8px;background:#fff;border:1px solid var(--line)}
 .ia-card-b{display:flex;gap:8px;margin-top:8px}
@@ -1426,14 +1431,22 @@ function telaAjuda() {
 
 /* ---------- histórico ---------- */
 /* ---------- assistente (IA) ---------- */
-const IA = { aberto: false, carregado: false, conv: null, itens: [], uso: 0, limite: 40, ativo: true, enviando: false };
+const IA = { aberto: false, carregado: false, conv: null, itens: [], uso: 0, limite: 40, ativo: true, enviando: false, escopo: (() => { try { return localStorage.getItem("cp-ia-escopo") || "tela"; } catch { return "tela"; } })() };
 const fmtUSD = (v) => "US$ " + Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dBR = (d) => d ? d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4) : "";
 function mdLite(t) {
   const linhas = esc(t).split("\n"); let h = "", tab = null, lista = false;
   const inl = (x) => x.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*]+)\*/g, "$1<i>$2</i>").replace(/`([^`]+)`/g, "<code>$1</code>");
   const fechaLista = () => { if (lista) { h += "</ul>"; lista = false; } };
-  const fechaTab = () => { if (tab) { h += `<div class="ia-tw"><table class="ia-tab">${tab.map((r, i) => `<tr>${r.map((c) => i ? `<td>${inl(c)}</td>` : `<th>${inl(c)}</th>`).join("")}</tr>`).join("")}</table></div>`; tab = null; } };
+  const cel = (c) => { // "80%" vira barra; "+15%" / "−10%" vira selo colorido
+    const nu = c.replace(/\*\*/g, "").trim();
+    let m = nu.match(/^(\d{1,3}(?:[.,]\d+)?)\s?%(.*)$/);
+    if (m) { const v = Math.min(100, parseFloat(m[1].replace(",", "."))); return `<span class="ia-bar" style="--p:${v}%"><b>${esc(m[1])}%</b></span>${inl(m[2] || "")}`; }
+    m = nu.match(/^([+−-])\s?(\d{1,3}(?:[.,]\d+)?)\s?%(.*)$/);
+    if (m) return `<span class="ia-chip ${m[1] === "+" ? "up" : "dn"}">${m[1] === "-" ? "−" : m[1]}${esc(m[2])}%</span>${inl(m[3] || "")}`;
+    return inl(c);
+  };
+  const fechaTab = () => { if (tab) { h += `<div class="ia-tw"><table class="ia-tab">${tab.map((r, i) => `<tr>${r.map((c) => i ? `<td>${cel(c)}</td>` : `<th>${inl(c)}</th>`).join("")}</tr>`).join("")}</table></div>`; tab = null; } };
   for (const l of linhas) {
     const tl = l.trim();
     if (/^\|.*\|$/.test(tl)) { fechaLista(); if (/^\|[\s:|-]+\|$/.test(tl)) continue; (tab ??= []).push(tl.slice(1, -1).split("|").map((c) => c.trim())); continue; }
@@ -1450,6 +1463,7 @@ function garantirChat() {
   document.body.insertAdjacentHTML("beforeend", `<button id="ia-btn" class="ia-btn" title="Assistente de preços">✦ Assistente</button>
    <aside id="ia" class="ia" hidden><header class="ia-h"><b>✦ Assistente de preços</b><span id="ia-uso" class="ia-uso"></span>
      <button id="ia-nova" title="Começar uma conversa nova">Nova conversa</button><button id="ia-x" class="x" title="Fechar">×</button></header>
+    <div class="ia-esc"><span>Analisar:</span><button type="button" data-esc="tela">📍 O que está na tela</button><button type="button" data-esc="geral">🌎 Geral (todas as regiões)</button></div>
     <div id="ia-msgs" class="ia-msgs"></div>
     <form id="ia-f" class="ia-f"><textarea id="ia-t" rows="2" placeholder="Pergunte ou peça uma mudança de base… (Enter envia)"></textarea><button class="prim" id="ia-env">Enviar</button></form>
     <p class="ia-rod">A IA só <b>propõe</b>: nada vai para a Stays sem você clicar em Confirmar. Tudo fica no Histórico, com Desfazer.</p></aside>`);
@@ -1457,6 +1471,7 @@ function garantirChat() {
   $("#ia-x").onclick = () => abrirChat(false);
   $("#ia-nova").onclick = () => { IA.conv = null; IA.itens = []; desenharChat(); $("#ia-t").focus(); };
   $("#ia-f").onsubmit = (e) => { e.preventDefault(); enviarIA(); };
+  document.querySelectorAll("[data-esc]").forEach((b) => b.onclick = () => { IA.escopo = b.dataset.esc; try { localStorage.setItem("cp-ia-escopo", IA.escopo); } catch {} desenharChat(); });
   $("#ia-t").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarIA(); } };
 }
 async function abrirChat(v) {
@@ -1481,6 +1496,7 @@ function desenharChat() {
     else if (it.role === "assistant") h += `<div class="ia-m ela">${mdLite(it.text)}</div>`;
     else if (it.role === "proposta") h += cartaoProposta(it.proposta);
     else if (it.role === "erro") h += `<div class="ia-m erro">${esc(it.text)}</div>`;
+    else if (it.role === "custo") h += `<div class="ia-custo">resposta custou ${fmtUSD(it.v)}</div>`;
   }
   if (IA.enviando) h += `<div class="ia-m ela pensando"><span></span><span></span><span></span> consultando os dados…</div>`;
   el.innerHTML = h; el.scrollTop = el.scrollHeight;
@@ -1488,10 +1504,12 @@ function desenharChat() {
   el.querySelectorAll("[data-pok]").forEach((b) => b.onclick = () => confirmarProposta(b.dataset.pok));
   el.querySelectorAll("[data-pno]").forEach((b) => b.onclick = () => descartarProposta(b.dataset.pno));
   $("#ia-env").disabled = IA.enviando || !IA.ativo;
+  document.querySelectorAll("[data-esc]").forEach((b) => b.classList.toggle("on", b.dataset.esc === IA.escopo));
+  const dica = $("#ia-t"); if (dica) dica.placeholder = IA.escopo === "geral" ? "Pergunta geral, todas as regiões… (Enter envia)" : "Pergunte sobre o que está na tela… (Enter envia)";
 }
 function cartaoProposta(p) {
   const r = p.resumo || {}; const ST = { pendente: "", executando: "Gravando…", executada: "✓ Gravado na Stays", descartada: "Descartada", erro: "Erro ao gravar" };
-  const linhas = (r.linhas || []).map((l) => `<tr><td><b>${esc(l.codigo || "")}</b>${l.origem ? `<div class="small mute">base de ${esc(l.origem)}</div>` : ""}</td><td>${dBR(l.de)} a ${dBR(l.ate)}</td><td><b>${l.pct > 0 ? "+" : ""}${l.pct}%</b></td><td>${l.noites}</td><td>${l.base_media_antes != null ? `R$ ${l.base_media_antes} → ` : ""}<b>R$ ${l.base_media_depois}</b></td></tr>`).join("");
+  const linhas = (r.linhas || []).map((l) => `<tr><td><b>${esc(l.codigo || "")}</b>${l.nome ? `<div class="small mute">${esc(nomeCurto(l.nome))}</div>` : ""}${l.origem ? `<div class="small mute">base de ${esc(l.origem)}</div>` : ""}</td><td>${dBR(l.de)} a ${dBR(l.ate)}</td><td><b>${l.pct > 0 ? "+" : ""}${l.pct}%</b></td><td>${l.noites}</td><td>${l.base_media_antes != null ? `R$ ${l.base_media_antes} → ` : ""}<b>R$ ${l.base_media_depois}</b></td></tr>`).join("");
   const res = p.resultado; const resTxt = p.status === "executada" ? `${(res?.ok ?? 0).toLocaleString("pt-BR")} diárias gravadas${res?.erro ? ` · ${res.erro} com erro` : ""}. Para voltar, use Desfazer no Histórico.` : p.status === "erro" ? esc(res?.falha || (res?.erros || []).join(" | ") || "") : "";
   return `<div class="ia-card ${p.status}"><div class="ia-card-t">📝 ${esc(r.titulo || "Proposta")} ${ST[p.status] ? `<span class="ia-st">${ST[p.status]}</span>` : ""}</div>
     ${r.motivo ? `<p class="small">${esc(r.motivo)}</p>` : ""}
@@ -1518,10 +1536,11 @@ async function enviarIA() {
   const t = $("#ia-t").value.trim(); if (!t || IA.enviando) return;
   $("#ia-t").value = ""; IA.enviando = true; IA.itens.push({ role: "user", text: t }); desenharChat();
   try {
-    const r = await api("ia_chat", { conversa_id: IA.conv, texto: t, contexto: contextoTela() });
+    const r = await api("ia_chat", { conversa_id: IA.conv, texto: t, contexto: IA.escopo === "geral" ? "escopo geral: todas as regiões e todos os imóveis (ignorar filtros da tela)" : contextoTela() });
     IA.conv = r.conversa_id; IA.uso = r.uso_mes_usd; IA.limite = r.limite_usd;
     IA.itens.pop(); IA.itens.push(...(r.itens || []));
     if (r.erro) IA.itens.push({ role: "erro", text: r.erro });
+    if (r.custo_usd) IA.itens.push({ role: "custo", v: r.custo_usd });
   } catch (e) { IA.itens.push({ role: "erro", text: e.message }); }
   IA.enviando = false; desenharChat(); $("#ia-t").focus();
 }
