@@ -117,6 +117,7 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .aj-dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;margin:0}.aj-dl dt{font-weight:700}.aj-dl dd{margin:0;color:var(--mute)}
 .pa-guia{margin:12px 14px 0;padding:10px 12px;background:var(--orange-soft);border-radius:8px;font-size:.82rem;line-height:1.4}
 .pa-guia ol{margin:6px 0 0;padding-left:18px}.pa-guia li{margin:3px 0}
+.au-grava{color:#b4501f}
 .au-grav{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 12px;margin:8px 0;border-radius:8px;background:var(--orange-soft)}
 .pa-desc{font-size:.8rem;color:var(--mute);margin:-4px 0 6px}.pa-pers{background:var(--orange-soft);color:#a3441a;font-weight:700;border-radius:999px;padding:1px 8px}
 .pa-dica{font-size:.74rem;color:var(--mute);margin:8px 0 0;line-height:1.35}
@@ -1113,7 +1114,7 @@ const soAuto = (c) => ({ ligado: c.ligado, modo: c.modo, horarios: c.horarios, h
 function desenharAuto(msg) {
   const el = $("#autob"); if (!el) return; const c = AUTOCFG;
   const linha = (id, rot, val, dica, w = 70) => `<label class="au-l"><span>${rot}</span><input id="${id}" type="number" value="${val}" style="width:${w}px"><small>${dica}</small></label>`;
-  el.innerHTML = `<div class="au-st ${c.ligado ? "on" : "off"}"><b>${c.ligado ? "● Ligada" : "❚❚ Pausada"}</b> · modo <b>teste</b> (não grava na Stays) · roda às ${c.horarios.map((h) => h + "h").join(" e ")}
+  el.innerHTML = `<div class="au-st ${c.ligado ? "on" : "off"}"><b>${c.ligado ? "● Ligada" : "❚❚ Pausada"}</b> · ${c.modo === "gravar" ? `<b class="au-grava">grava na Stays</b> (próximos ${c.horizonte} dias)` : `modo <b>teste</b> (não grava na Stays)`} · roda às ${c.horarios.map((h) => h + "h").join(" e ")}
      <button id="au-toggle">${c.ligado ? "Pausar automação" : "Ligar automação"}</button><button id="au-agora" class="prim">Rodar teste agora</button><span id="au-prog" class="small"></span></div>
    <div class="au-prot"><h3 style="margin:12px 0 4px">🔒 Períodos protegidos</h3>
      <p class="small mute">Nessas datas a automação <b>só sobe</b> o preço (nunca baixa e o freio não age) ou fica <b>fora</b>. Valem para todas as regiões. Ajuste manual continua livre.</p>
@@ -1122,6 +1123,7 @@ function desenharAuto(msg) {
        <td><select data-pr="${i}" data-k="regra"><option value="so_sobe" ${p.regra === "so_sobe" ? "selected" : ""}>só sobe</option><option value="fora" ${p.regra === "fora" ? "selected" : ""}>fora da automação</option></select></td><td><button class="x" data-prdel="${i}" title="Apagar">×</button></td></tr>`).join("")}</table>
      <p><button id="pr-add">+ período</button> <button class="prim" id="pr-save">Salvar períodos</button> <span id="pr-msg"></span></p></div>
    <details class="au-par"><summary>Parâmetros</summary><div class="au-grid">
+     <label class="au-l"><span>Modo</span><select id="au-modo"><option value="teste" ${c.modo !== "gravar" ? "selected" : ""}>Teste — só registra</option><option value="gravar" ${c.modo === "gravar" ? "selected" : ""}>Gravar na Stays</option></select><small>em "Gravar", cada rodada grava sozinha o "iria para"</small></label>
      <label class="au-l"><span>Horários</span><input id="au-hor" value="${c.horarios.join(", ")}" style="width:90px"><small>horas cheias, separadas por vírgula</small></label>
      ${linha("au-hz", "Olhar para frente", c.horizonte, "dias a partir de hoje")}
      ${linha("au-passo", "Passo máximo", c.passo_max, "pontos de % por rodada (sobe/desce aos poucos)")}
@@ -1134,7 +1136,7 @@ function desenharAuto(msg) {
    <h3 style="margin:14px 0 6px">Últimas rodadas</h3>
    ${AUTO_RUNS.length ? `<div class="rtab"><table class="t"><tr><th>Quando</th><th>Status</th><th>Regiões</th><th>Diárias que mudariam</th><th>Sobem</th><th>Descem</th><th>Travadas (manual)</th><th></th></tr>
      ${AUTO_RUNS.map((r) => { const z = r.resumo || {}; const feitas = (z.por_regiao || []).length;
-       return `<tr><td>${fmtHora(r.started_at)}<div class="small mute">${esc(r.slot.startsWith("manual") ? "manual" : "agendada")}</div></td><td>${r.status === "rodando" ? `rodando (${r.cursor} regiões feitas)` : r.status === "ok" ? "concluída" : esc(r.status)}${z.parada ? `<div class="small msg">${esc(z.parada)}</div>` : ""}</td>
+       return `<tr><td>${fmtHora(r.started_at)}<div class="small mute">${esc(r.slot.startsWith("manual") ? "manual" : "agendada")}</div></td><td>${r.status === "rodando" ? `calculando (${r.cursor} regiões)` : r.status === "gravando" ? `<b class="au-grava">gravando na Stays</b> (${(z.gtotal ?? 0) - (z.gfaltam ?? 0)} de ${z.gtotal ?? "?"} partes)` : r.status === "ok" ? "concluída" : esc(r.status)}${z.parada ? `<div class="small msg">${esc(z.parada)}</div>` : ""}</td>
        <td>${feitas}${z.puladas ? `<div class="small mute">${z.puladas} fora (poucas unidades)</div>` : ""}${z.erros ? `<div class="small msg">${z.erros} com erro</div>` : ""}</td>
        <td><b>${(z.itens ?? 0).toLocaleString("pt-BR")}</b></td><td class="up-t">${(z.sobem ?? 0).toLocaleString("pt-BR")}</td><td class="dn-t">${(z.descem ?? 0).toLocaleString("pt-BR")}</td><td>${(z.travadas ?? 0).toLocaleString("pt-BR")}</td>
        <td><button data-run="${r.id}">Ver</button></td></tr>`; }).join("")}</table></div>`
@@ -1146,7 +1148,7 @@ function desenharAuto(msg) {
   $("#pr-save").onclick = async () => { try { await api("auto_cfg_save", { config: soAuto(AUTOCFG) }); S.grid = null; await carregarAuto(`<span class="okmsg">Períodos protegidos salvos.</span>`); } catch (e) { $("#pr-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; } };
   $("#au-toggle").onclick = async () => { try { await api("auto_cfg_save", { config: { ...soAuto(AUTOCFG), ligado: !AUTOCFG.ligado } }); await carregarAuto(`<span class="okmsg">Automação ${AUTOCFG.ligado ? "pausada" : "ligada"}.</span>`); } catch (e) { alert(e.message); } };
   $("#au-save").onclick = async () => {
-    const cfg = { ...soAuto(AUTOCFG), horarios: $("#au-hor").value.split(/[,\s]+/).filter(Boolean), horizonte: $("#au-hz").value, passo_max: $("#au-passo").value, min_dif: $("#au-min").value,
+    const cfg = { ...soAuto(AUTOCFG), modo: $("#au-modo").value, horarios: $("#au-hor").value.split(/[,\s]+/).filter(Boolean), horizonte: $("#au-hz").value, passo_max: $("#au-passo").value, min_dif: $("#au-min").value,
       trava_manual_dias: $("#au-trava").value, unidades_min: $("#au-uni").value, max_diarias_rodada: $("#au-max").value, regioes_excluidas: [...$("#au-exc").selectedOptions].map((o) => o.value) };
     try { await api("auto_cfg_save", { config: cfg }); await carregarAuto(`<span class="okmsg">Parâmetros salvos.</span>`); } catch (e) { $("#au-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; }
   };
@@ -1299,10 +1301,10 @@ function telaAjuda() {
    </section>
 
    <section class="aj-s">
-    <h3>5. Rodadas automáticas (modo teste)</h3>
+    <h3>5. Rodadas automáticas</h3>
     <div class="aj-cols">
      <div><div class="aj-clock"><span>7h</span><span>14h</span></div>
-      <p>Duas vezes por dia o servidor compara a sugestão de cada noite (próximos <b>90 dias</b>) com o ajuste em vigor e anota o que mudaria. <b>Hoje não grava</b> — só registra.</p></div>
+      <p>Duas vezes por dia o servidor compara a sugestão de cada noite (próximos <b>90 dias</b>) com o preço atual e <b>grava na Stays</b> o que mudar, região por região. Tudo fica no Histórico como "automação (rodada N)", com Desfazer. Dá para voltar ao modo teste (só registra) em Parâmetros.</p></div>
      <div><h4>Sobe aos poucos</h4>
       <div class="aj-steps2"><div style="height:20%"><span>0%</span></div><div style="height:45%"><span>+20%</span></div><div style="height:70%"><span>+40%</span></div><div style="height:85%"><span>+50%</span></div></div>
       <p class="small mute">Sugestão +50%: no máximo 20 pontos por rodada. Diferença menor que 5 pontos não mexe. Ajuste manual vira a nova base e a automação segue em cima dele.</p>
