@@ -91,7 +91,7 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .aj-g{border-collapse:separate;border-spacing:0;font-size:.78rem;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .aj-g th,.aj-g td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px 6px;text-align:center;white-space:nowrap}
 .aj-g th{background:#fff;text-align:left;font-weight:700}.aj-g tr:first-child th{background:var(--panel);text-align:center}
-.aj-c{min-width:62px;line-height:1.15}.aj-c small{display:block;color:var(--mute);font-size:.66rem}.aj-c .b{display:inline-block;font-size:.66rem;border-radius:4px;padding:0 3px;margin-left:2px;font-weight:700}
+.aj-c{min-width:62px;line-height:1.15}.aj-c.rel{position:relative}.aj-c small{display:block;color:var(--mute);font-size:.66rem}.aj-c .b{display:inline-block;font-size:.66rem;border-radius:4px;padding:0 3px;margin-left:2px;font-weight:700}
 .aj-c.res{background:var(--occ)}.aj-c.blk{background:repeating-linear-gradient(135deg,#eef0f4 0 5px,#d9dde5 5px 7px)}
 .aj-leg{list-style:none;padding:0;margin:0;display:grid;gap:8px;font-size:.88rem}
 .aj-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
@@ -1454,7 +1454,7 @@ function telaAjuda() {
           <div><span>Amanhã aplica</span><b>+10%</b><em>R$ 220</em></div>
           <div class="x"><span>Nunca vira</span><b>+30% e +10%</b><em>R$ 286</em></div>
         </div>
-        <p class="small mute">O ajuste novo <b>substitui</b> o anterior. A conta parte sempre da base.</p>
+        <p class="small mute">O ajuste da automação <b>substitui</b> o anterior: a conta parte sempre da base. (O ajuste manual é diferente: é sobre o preço no ar e vira a nova base — veja abaixo.)</p>
         <p class="small"><b>Ajuste manual é sobre o preço no ar e vira a nova base.</b> A automação <b>mantém esse preço</b> enquanto a noite ficar na mesma faixa de ocupação e de antecedência da tabela. Se a noite mudar de faixa (ex.: ocupação de 40% para 60%), ela aplica só a diferença entre as faixas em cima do seu preço. O Desfazer devolve a base anterior.</p></div>
       <div><h4>Faixas de noites</h4>
         <table class="aj-t"><tr><th>Mín. noites</th><th>Base</th><th>Com +30%</th></tr>
@@ -1470,20 +1470,20 @@ function telaAjuda() {
      <div class="aj-mock">
       <table class="aj-g">
        <tr><th></th><th>Sex 14</th><th>Sáb 15</th><th>Dom 16</th><th>Seg 17</th></tr>
-       <tr class="hd"><th>${n(1)} Ocupação da região</th>${cel("<b>92%</b><small>46/50</small>", "#c9ebd6")}${cel("<b>78%</b><small>39/50</small>", "#e3f4ea")}${cel("<b>54%</b><small>27/50</small>", "#fdf3d9")}${cel("<b>30%</b><small>15/50</small>", "#fbd5d1")}</tr>
-       <tr class="hd"><th>${n(2)} Sugestão</th>${cel(`<span class="b up">+50%</span>`)}${cel(`<span class="b up">+23%</span><span class="rea-m">▼</span>`)}${cel(`<span class="b up">0%</span>`)}${cel(`<span class="b dn">−15%</span>`)}</tr>
-       <tr class="hd"><th>${n(3)} Dias sem reserva</th>${cel("0<small>0× normal</small>")}${cel("5<small>1,7× normal</small>", "#fdf3d9")}${cel("2<small>0,7× normal</small>")}${cel("12<small>4× normal</small>", "#fbd5d1")}</tr>
-       <tr class="hd"><th>${n(4)} Vendas 7 dias</th>${cel("6<small>2,1×</small>", "#c9ebd6")}${cel("3<small>1×</small>")}${cel("1<small>0,4×</small>", "#fbd5d1")}${cel("0<small>0×</small>", "#fbd5d1")}</tr>
-       <tr><th>${n(5)} Apto 101</th>${cel(`<b>R$ 300</b><span class="b up">+50%</span>`, "rgba(242,107,46,.4)")}${cel(`<b>R$ 300</b><span class="sgx">sug. 246</span>`, "rgba(242,107,46,.4)")}${cel(`<b>R$ 200</b>`, "")}${cel(`<b>R$ 170</b><span class="b dn">−15%</span>`, "rgba(29,122,70,.3)")}</tr>
+       <tr class="hd"><th>${n(1)} Ocupação da região</th>${cel("<b>92%</b><small>46/50</small>", "rgba(22,41,79,.31)")}${cel("<b>78%</b><small>39/50</small>", "rgba(22,41,79,.26)")}${cel("<b>54%</b><small>27/50</small>", "rgba(22,41,79,.19)")}${cel("<b>30%</b><small>15/50</small>", "rgba(22,41,79,.12)")}</tr>
+       <tr class="hd"><th>${n(2)} Sugestão</th>${cel(`<b style="color:#2c6b3a">+50%</b>`)}${cel(`<b style="color:#2c6b3a">+23%</b><span class="rea-m">▼</span>`)}${cel(`<b>0%</b>`)}${cel(`<b style="color:#a23a2e">−15%</b>`)}</tr>
+       <tr class="hd"><th>${n(3)} Dias sem reserva</th>${cel("<b>0 dias</b><small>no ritmo</small>")}${cel("<b>5 dias</b><small>devagar</small>")}${cel("<b>2 dias</b><small>no ritmo</small>")}${cel(`<b style="color:#a23a2e">12 dias</b><small style="color:#a23a2e">muito parada</small>`)}</tr>
+       <tr class="hd"><th>${n(4)} Vendas 7 dias</th>${cel("6<small>bem acima</small>")}${cel("3<small>normal</small>")}${cel("1<small>abaixo</small>")}${cel("0<small>bem abaixo</small>")}</tr>
+       <tr><th>${n(5)} Apto 101</th>${cel(`<i class="pt up" style="position:absolute;top:4px;right:4px"></i><b>R$ 300</b><span style="color:#2c6b3a;font-weight:700;font-size:.7rem">+50%</span>`, "", "", "rel")}${cel(`<b>R$ 300</b><span class="sgx" style="color:var(--mute)">sug. 246</span>`)}${cel(`<b>R$ 200</b>`, "")}${cel(`<b>R$ 170</b><span style="color:#a23a2e;font-weight:700;font-size:.7rem">−15%</span>`, "")}</tr>
        <tr><th>${n(6)} Apto 102</th>${cel("", "", "", "res")}${cel("", "", "", "blk")}${cel(`<b>R$ 210</b>`, "")}${cel(`<b>R$ 210</b>`, "")}</tr>
       </table>
      </div>
      <ol class="aj-leg">
       <li>${n(1)} <b>Ocupação da região</b>: unidades <b>reservadas</b> ÷ em operação. Bloqueios, manutenção e uso do proprietário não contam (para não subir preço sem demanda real).</li>
       <li>${n(2)} <b>Sugestão da automação</b>: % sobre a base. <b>▼</b> = freada pelas vendas, <b>▲</b> = acelerada. Mouse em cima mostra o porquê.</li>
-      <li>${n(3)} <b>Dias sem reserva</b>: há quantos dias não entra reserva <b>com check-in naquele dia</b> (e quantas vezes o normal da região).</li>
-      <li>${n(4)} <b>Vendas 7 dias</b>: reservas da última semana para a noite e o ritmo vs. o normal.</li>
-      <li>${n(5)} <b>Cor da célula</b>: laranja = acima da base, verde = abaixo, branco = na base. <b>R$ 300</b> <span class="sgx">sug. 246</span> = preço atual em destaque; embaixo, o preço que a sugestão daria.</li>
+      <li>${n(3)} <b>Dias sem reserva</b>: há quantos dias não entra reserva <b>com entrada naquele dia</b>, comparado ao normal da região: <b>no ritmo · devagar · parada · muito parada</b> (vermelho = a venda parou). Mouse em cima explica a conta.</li>
+      <li>${n(4)} <b>Vendas 7 dias</b>: reservas da última semana para a noite, comparadas ao normal (bem abaixo … bem acima). Fica recolhida: abra em <b>▸ vendas 7 dias</b>.</li>
+      <li>${n(5)} <b>Célula</b>: preço no ar em destaque, o % gravado embaixo e, se a automação for mudar, "<i>sug.</i>" com o preço que ela vai gravar. Pontinho <span style="color:var(--orange)">●</span> = 50% ou mais acima da base · <span style="color:#2c8a4b">●</span> = 20% ou mais abaixo. Mouse em cima explica tudo em palavras. A legenda tem <b>Visão Limpa | Detalhada</b> (a detalhada pinta as células pelo desvio da base). A coluna dos nomes alarga arrastando a borda.</li>
       <li>${n(6)} Cinza = reservado · hachurado = bloqueado/manutenção.</li>
      </ol>
     </div>
@@ -1508,8 +1508,8 @@ function telaAjuda() {
      <div class="aj-pc"><small>Passo 1 · Tabela</small><b>+30%</b><p>Região com <b>78%</b> de ocupação, check-in em <b>2 dias</b> → a tabela da região diz +30%.</p>
        <table class="aj-mini"><tr><th></th><th>0–2 d</th><th>3–7 d</th></tr><tr><th>70–85%</th><td class="hl">+30</td><td>+70</td></tr><tr><th>85–100%</th><td>+70</td><td>+100</td></tr></table></div>
      <div class="aj-op">→</div>
-     <div class="aj-pc"><small>Passo 2 · Freio</small><b>× 75%</b><p>Há <b>5 dias</b> não entra reserva com check-in nesse dia; o normal da região é 3 → <b>1,7×</b> o normal → usa 75% do acréscimo.</p>
-       <div class="aj-bar"><i style="width:18%"></i><i style="width:22%"></i><i class="hl" style="width:25%"></i><i style="width:35%"></i></div><div class="aj-bar-l"><span>até 1,5× 100%</span><span>1,5–2,5× 75%</span><span>2,5–4× 50%</span><span>4×+ 0%</span></div></div>
+     <div class="aj-pc"><small>Passo 2 · Freio</small><b>× 75%</b><p>Há <b>5 dias</b> não entra reserva com entrada nesse dia; o normal da região é 1 a cada 3 dias → venda <b>devagar</b> → usa 75% do acréscimo.</p>
+       <div class="aj-bar"><i style="width:18%"></i><i style="width:22%"></i><i class="hl" style="width:25%"></i><i style="width:35%"></i></div><div class="aj-bar-l"><span>no ritmo 100%</span><span>devagar 75%</span><span>parada 50%</span><span>muito parada 0%</span></div></div>
      <div class="aj-op">→</div>
      <div class="aj-pc"><small>Passo 3 · Aceleração</small><b>+0</b><p>Vendas da semana = 1× o normal → não soma nada. Se vendesse <b>2×</b> o normal, somaria +10 pontos.</p></div>
      <div class="aj-op">=</div>
@@ -1526,9 +1526,10 @@ function telaAjuda() {
       <p>Duas vezes por dia o servidor compara a sugestão de cada noite (próximos <b>90 dias</b>) com o preço atual e <b>grava na Stays</b> o que mudar, região por região. Tudo fica no Histórico como "automação (rodada N)", com Desfazer. Dá para voltar ao modo teste (só registra) em Parâmetros.</p></div>
      <div><h4>Vai direto à sugestão</h4>
       <div class="aj-steps2"><div style="height:20%"><span>0%</span></div><div style="height:85%"><span>+50%</span></div></div>
-      <p class="small mute">Sugestão +50%: a rodada já grava +50% (sem limite por rodada, desde 06/11). Diferença menor que 5 pontos não mexe. Ajuste manual vira a nova base e a automação segue em cima dele.</p>
+      <p class="small mute">Sugestão +50%: a rodada já grava +50% (sem limite por rodada, desde 06/11). Diferença menor que 5 pontos não mexe. Noites reservadas não mudam. A ocupação usada é só de reservas (bloqueios não contam).</p>
+      <h4>✋ Depois de um ajuste manual</h4><p class="small">O preço que você deu <b>fica</b> enquanto a noite estiver na mesma faixa da tabela (ocupação × antecedência). Se mudar de faixa, a automação aplica <b>só a diferença</b> em cima do seu preço. "Voltar à base" devolve a noite à automação normal.</p>
       <h4>🔒 Períodos protegidos</h4><p class="small">Natal/Réveillon, janeiro, Carnaval e Semana Santa: a automação <b>só sobe</b> (nunca baixa, sem freio). Na grade aparece 🔒 na linha da sugestão.</p>
-      <h4>✦ Assistente (IA)</h4><p class="small">Botão laranja no canto da tela. Pergunte sobre ocupação, bases e sugestões, ou peça "suba 10% a base do X em dezembro" / "copie a base do X para o Y com −10%". A IA só <b>propõe</b>: aparece um cartão e nada vai para a Stays sem você clicar em <b>Confirmar e gravar</b>. Gasto do mês aparece no topo do chat (limite US$ 40).</p>
+      <h4>✦ Assistente (IA)</h4><p class="small">Botão laranja no canto da tela. Pergunte sobre ocupação, bases e sugestões, ou peça "suba 10% a base do X em dezembro" / "copie a base do X para o Y com −10%". Escolha <b>📍 O que está na tela</b> ou <b>🌎 Geral</b>. Ela consulta os dados da ferramenta e lê a Stays (reservas e calendário, só leitura) e decide como revenue management: ritmo e resultado do ano passado, preço contra o ano passado e escassez. Cada ajuste sugerido vem num <b>cartão</b> com <b>Aprovar e gravar na Stays</b> ou <b>Recusar</b>. A barrinha no topo mostra o quanto do limite do mês já foi usado.</p>
       <h4>📈 Sugestões de base</h4><p class="small">A aba <i>Sugestões de base</i> lista as unidades que, nos próximos 6 meses, já venderam bem acima da região e do mesmo período do ano passado (mesma antecedência). Sugere +10% ou +15% na <b>base</b> do mês; você marca, ajusta o % e aplica com prévia. A automação segue por cima da nova base.</p>
       <h4>🆕 Anúncios novos</h4><p class="small">Se o preço do anúncio novo foi copiado de outro, ele <b>herda a base e o ajuste</b> desse outro e já entra nas rodadas. Se não der para saber a origem, fica <b>fora da automação</b> até alguém confirmar em <i>Automação → Anúncios novos</i> (usar o preço atual ou copiar de outro anúncio ±%). Na grade, o nome mostra o selo "novo".</p></div>
     </div>
@@ -1538,7 +1539,7 @@ function telaAjuda() {
    <section class="aj-s">
     <h3>6. Combinados da equipe</h3>
     <div class="aj-do">
-     <div class="ok"><b>✓ Faça</b><ul><li>Ajuste preço só pela ferramenta.</li><li>Use a prévia antes de gravar.</li><li>Confira o Histórico em caso de dúvida.</li><li>Mude a tabela da região quando a sugestão parecer errada.</li><li>Lembre: ajuste manual vira a nova base daquelas noites.</li></ul></div>
+     <div class="ok"><b>✓ Faça</b><ul><li>Ajuste preço só pela ferramenta.</li><li>Use a prévia antes de gravar.</li><li>Confira o Histórico em caso de dúvida.</li><li>Mude a tabela da região quando a sugestão parecer errada.</li><li>Lembre: ajuste manual é sobre o preço no ar, vira a nova base e fica até a noite mudar de faixa da tabela.</li></ul></div>
      <div class="no"><b>✗ Não faça</b><ul><li>Mexer em preço direto na Stays.</li><li>Usar <i>Condição (%)</i> / Promoções e Acréscimos da Stays — ela multiplica o preço por cima.</li><li>Gravar em massa sem olhar o resumo.</li></ul></div>
     </div>
    </section>
@@ -1551,6 +1552,8 @@ function telaAjuda() {
      <dt>Intervalo normal</dt><dd>tempo típico entre uma reserva e a seguinte com o mesmo dia de check-in, na região, por faixa de antecedência.</dd>
      <dt>Ritmo</dt><dd>reservas da última semana para a noite ÷ o normal da região nessa antecedência.</dd>
      <dt>Grupo de regiões</dt><dd>regiões que compartilham a mesma tabela de automação (ou cada uma com tabela própria).</dd>
+     <dt>Ocupação da região</dt><dd>unidades com reserva ÷ unidades em operação. Bloqueios (inclusive os espelhos prédio × individual) e uso do proprietário não contam.</dd>
+     <dt>Faixa da tabela</dt><dd>cada célula da tabela da automação: uma faixa de ocupação × uma faixa de antecedência (ex.: 70–85% e 3–7 dias).</dd>
      <dt>Margem de manobra</dt><dd>anúncio técnico de reserva; não entra na ocupação nem na automação.</dd>
     </dl>
    </section>
