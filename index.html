@@ -514,7 +514,7 @@ function legenda() {
      : `<span class="it"><i class="pt up" style="position:static;display:inline-block"></i> preço +50% ou mais acima da base · <i class="pt dn" style="position:static;display:inline-block"></i> 20% ou mais abaixo</span>`}
    <span class="it"><span class="sw" style="background:var(--occ)"></span>Reservado / sem unidade livre</span>
    <span class="it"><span class="sw" style="background:repeating-linear-gradient(135deg,#eef0f4 0 4px,#d9dde5 4px 6px)"></span>Bloqueado ou manutenção (sem reserva no dia)</span>
-   <span class="it"><b style="color:var(--ink)">2/8 livres</b> unidades livres no dia ÷ total do grupo (anúncios com várias unidades) · na linha de ocupação, <b style="color:var(--ink)">51/92</b> = ocupadas ÷ em operação</span>
+   <span class="it"><b style="color:var(--ink)">2/8 livres</b> unidades livres no dia ÷ total do grupo (anúncios com várias unidades) · na linha de ocupação, <b style="color:var(--ink)">51/92</b> = unidades <b>reservadas</b> ÷ em operação (bloqueios e uso do proprietário não contam)</span>
    <span class="it"><span class="sw" style="background:var(--orange-soft);box-shadow:inset 0 -3px 0 var(--orange)"></span>Data selecionada (cabeçalho com faixa laranja)</span>
    <span class="it"><b style="color:var(--ink)">R$ 219</b> <span class="sgx">sug. 197</span> preço atual em destaque · embaixo, o preço que a sugestão da automação daria</span>
    <span class="it"><span class="b up">+50%</span><span class="rea-m">▼</span> sugestão freada (▼) ou acelerada (▲) pelas vendas · passe o mouse para ver o motivo</span>
@@ -535,7 +535,7 @@ function desenharGrade() {
   const occ = (d) => { const o = G.occ[d]; return o && o[0] ? Math.round(1000 * (1 - o[1] / o[0])) / 10 : null; };
   let h = `<div class="cal-lay"><div class="cal-main">` + legenda() + `<div class="gridbox"><table class="g ${S.detalhado ? "" : "limpo"} ${S.detalhado || S.sinais ? "" : "sem-sinais"} ${S.modoSel === "personalizada" ? "pers" : ""}" id="tg"><thead><tr><th class="nm"><input type="checkbox" id="all" ${L.every((l) => S.selL.has(l.id)) ? "checked" : ""}> ${L.length} anúncios</th>`;
   for (const d of D) { const w = dowOf(d); h += `<th class="dh ${w === 0 || w === 6 ? "we" : ""} ${S.selD.has(d) ? "sel" : ""}" data-d="${d}">${fmtD(d)}<small>${DOW[w]}</small></th>`; }
-  h += `</tr></thead><tbody><tr class="occ"><th class="nm">Ocupação da região <span class="tag">ocupadas ÷ em operação</span></th>`;
+  h += `</tr></thead><tbody><tr class="occ"><th class="nm">Ocupação da região <span class="tag" title="Só reservas de verdade. Bloqueios, manutenção e uso do proprietário não contam como ocupado.">reservadas ÷ em operação</span></th>`;
   for (const d of D) { const p = occ(d), o = G.occ[d]; h += `<td class="o" style="background:${S.detalhado ? corOcc(p) : corOccLimpa(p)}" data-tipocc="${d}">${p == null ? "—" : p.toFixed(0) + "%"}<div class="small mute" style="font-weight:600">${o ? o[0] - o[1] + "/" + o[0] : ""}</div></td>`; }
   h += `</tr><tr class="sug"><th class="nm">Sugestão da automação${S.detalhado ? "" : ` <button class="lk-sinais" id="tg-sinais" title="Dias sem reserva e vendas dos últimos 7 dias">${S.sinais ? "▾ esconder sinais" : "▸ sinais de venda"}</button>`}</th>`;
   for (const d of D) { const s = S.sug?.[d]; const mud = s && s.pct != null && s.pct_tabela != null && s.pct !== s.pct_tabela;
@@ -1409,7 +1409,7 @@ function telaAjuda() {
       </table>
      </div>
      <ol class="aj-leg">
-      <li>${n(1)} <b>Ocupação da região</b>: unidades ocupadas ÷ em operação. Verde = cheia, vermelho = vazia.</li>
+      <li>${n(1)} <b>Ocupação da região</b>: unidades <b>reservadas</b> ÷ em operação. Bloqueios, manutenção e uso do proprietário não contam (para não subir preço sem demanda real).</li>
       <li>${n(2)} <b>Sugestão da automação</b>: % sobre a base. <b>▼</b> = freada pelas vendas, <b>▲</b> = acelerada. Mouse em cima mostra o porquê.</li>
       <li>${n(3)} <b>Dias sem reserva</b>: há quantos dias não entra reserva <b>com check-in naquele dia</b> (e quantas vezes o normal da região).</li>
       <li>${n(4)} <b>Vendas 7 dias</b>: reservas da última semana para a noite e o ritmo vs. o normal.</li>
