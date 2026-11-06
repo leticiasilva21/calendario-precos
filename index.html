@@ -624,7 +624,7 @@ function painelConteudo() {
      <div class="pa-k"><span>ocupação média da região</span><b>${occM == null ? "—" : Math.round(occM) + "%"}</b></div>
      ${pers ? `<div class="pa-b"><button id="p-filtro">Voltar ao filtro do topo</button></div>` : `<p class="pa-dica">Mude o período, os dias da semana ou desmarque imóveis para ajustar. Para escolher noites específicas, arraste na grade.</p>`}</div>
    <div class="pa-acoes">
-     ${linha("pct", "Ajustar diária", `<label class="pa-in"><input id="p-pct" type="number" step="1" value="${esc(S.vPct ?? "")}" placeholder="-10"><span>%</span></label>`, `sobre a base · vira a nova base · ${L.PCT_MIN}% a +${L.PCT_MAX}%`)}
+     ${linha("pct", "Ajustar diária", `<label class="pa-in"><input id="p-pct" type="number" step="1" value="${esc(S.vPct ?? "")}" placeholder="-10"><span>%</span></label>`, `sobre o preço no ar · o resultado vira a nova base · ${L.PCT_MIN}% a +${L.PCT_MAX}%`)}
      ${linha("one_night_on", "Liberar 1 noite", `<label class="pa-in"><input id="p-1n" type="number" step="1" min="0" value="${esc(S.v1n ?? "")}" placeholder="30"><span>%</span></label>`, "acima da diária mínima")}
      ${linha("one_night_off", "Tirar 1 noite", "", "remove a faixa de 1 noite")}
      ${linha("reset", "Voltar à base", "", "zera ajuste e 1 noite")}
@@ -775,6 +775,7 @@ function simular(op = S.op, val = Number(S.val), pctPorData = null) {
     if (op === "pct") pct = pctPorData ? pctPorData[d] : val; if (op === "one_night_on") one = val; if (op === "one_night_off") one = null;
     if (op === "reset") { pct = 0; one = null; }
     if (op === "rebase") { base = one != null ? antes.filter((t) => t[0] !== 1) : antes; pct = 0; }
+    if (op === "pct" && !pctPorData && antes.length) base = one != null ? antes.filter((t) => t[0] !== 1) : antes; // manual: % sobre o preço no ar
     const depois = calcular(base, pct, one);
     if (JSON.stringify(depois) !== JSON.stringify(antes)) out.push({ id, d, antes, depois });
   }
@@ -830,7 +831,7 @@ function previa() {
   const e = validar(); if (e) return ($("#a-msg").innerHTML = `<span class="msg">${e}</span>`);
   const R = resumir(simular(), nomes());
   const op = S.op, pct = Number(S.val), sell_ids = [...S.selL], dates = [...S.selD].sort();
-  const tit = { pct: `Prévia: ajuste de ${sinal(pct)}% sobre a base`, one_night_on: `Prévia: liberar 1 noite com +${pct}%`, one_night_off: "Prévia: tirar a liberação de 1 noite", reset: "Prévia: voltar para a diária base", rebase: "Prévia: redefinir a base" }[op];
+  const tit = { pct: `Prévia: ${sinal(pct)}% sobre o preço no ar (vira a nova base)`, one_night_on: `Prévia: liberar 1 noite com +${pct}%`, one_night_off: "Prévia: tirar a liberação de 1 noite", reset: "Prévia: voltar para a diária base", rebase: "Prévia: redefinir a base" }[op];
   S.prev = { chave: chave(), R, titulo: tit, exec: () => api("apply", { op, pct, one_night_pct: pct, sell_ids, dates }) };
   atualizarBotaoGravar(); $("#a-msg").innerHTML = "";
   abrirResumo(S.prev);
@@ -1442,7 +1443,7 @@ function telaAjuda() {
           <div class="x"><span>Nunca vira</span><b>+30% e +10%</b><em>R$ 286</em></div>
         </div>
         <p class="small mute">O ajuste novo <b>substitui</b> o anterior. A conta parte sempre da base.</p>
-        <p class="small"><b>Ajuste manual vira a nova base:</b> aplicou −20% à mão? O preço resultante passa a ser a base daquelas noites e a automação parte dele. O Desfazer devolve a base anterior.</p></div>
+        <p class="small"><b>Ajuste manual é sobre o preço no ar e vira a nova base:</b> aplicou −20% à mão? O preço que está na Stays cai 20% e esse resultado passa a ser a base daquelas noites e a automação parte dele. O Desfazer devolve a base anterior.</p></div>
       <div><h4>Faixas de noites</h4>
         <table class="aj-t"><tr><th>Mín. noites</th><th>Base</th><th>Com +30%</th></tr>
           <tr><td>2+</td><td>R$ 200</td><td><b>R$ 260</b></td></tr><tr><td>7+</td><td>R$ 180</td><td><b>R$ 234</b></td></tr><tr><td>15+</td><td>R$ 170</td><td><b>R$ 221</b></td></tr></table>
