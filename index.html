@@ -565,7 +565,7 @@ function desenharGrade() {
       const dv = full ? null : desvioPct(prices, base);
       const sg = S.sug?.[d]; let sgTxt = "";
       if (!full && sg && sg.pct != null && base?.length) {
-        const prop = minTier(calcular(base, sg.pct, one ?? null));
+        const prop = minTier(calcular(base, pctEfetivo(c, sg), one ?? null));
         if (prop && mt && prop[1] !== mt[1]) sgTxt = `<span class="sgx">sug. ${num(prop[1])}</span>`;
       }
       const bloq = full && Number(c?.[6] || 0) > 0 && !Number(c?.[7] || 0); // c[6] bloqueadas, c[7] reservadas (tabela de reservas)
@@ -724,6 +724,13 @@ function ligarGrade() {
   document.onmouseup = () => { ARR = null; };
   pintarSelecao();
 }
+// % que a automação vai buscar nesta célula: noite com ajuste manual só muda se trocar de faixa da tabela
+function pctEfetivo(c, sg) {
+  if (!sg || sg.pct == null) return null;
+  if (c?.[8] == null) return sg.pct;
+  if (Number(sg.regra) === Number(c[8])) return 0;
+  return Math.round(((1 + Number(sg.pct_tabela ?? sg.pct) / 100) / (1 + Number(c[9] ?? 0) / 100) - 1) * 100);
+}
 function tipCelula(d, c) {
   // balão em linguagem simples (pedido de 06/11): situação → preços no ar × base → o que significa → o que a automação vai fazer
   const DIAS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
@@ -743,10 +750,13 @@ function tipCelula(d, c) {
   if (dv != null && Math.abs(dv) >= 0.5) linhas.push(`O preço no ar está <b>${Math.abs(Math.round(dv))}% ${dv > 0 ? "acima" : "abaixo"} da base</b>${pct ? ` (ajuste gravado de ${pct > 0 ? "+" : ""}${pct}%)` : ""}.`);
   else linhas.push("O preço no ar é igual à base (sem ajuste).");
   if (one != null) linhas.push(`Estadia de 1 noite liberada, ${one}% acima do preço de 2 noites.`);
+  if (c[8] != null) linhas.push(`✋ <b>Ajuste manual:</b> a automação mantém este preço enquanto a noite ficar na mesma faixa de ocupação e de antecedência da tabela (${c[9] > 0 ? "+" : ""}${c[9] ?? 0}% no momento do ajuste). Se mudar de faixa, aplica só a diferença em cima deste preço.`);
   const sg = S.sug?.[d];
   if (sg?.pct != null) {
-    const prop = minTier(calcular(base, sg.pct, one)), mt = minTier(atual);
-    let t = `A automação sugere <b>${sg.pct > 0 ? "+" : ""}${sg.pct}% sobre a base</b> para este dia${prop ? ` (≈ ${brl(prop[1])} na menor estadia)` : ""}.`;
+    const pe = pctEfetivo(c, sg), prop = minTier(calcular(base, pe, one)), mt = minTier(atual);
+    let t = c[8] != null
+      ? (pe === 0 ? "A noite continua na mesma faixa da tabela, então a automação <b>mantém o seu preço</b>." : `A noite mudou de faixa na tabela: a automação aplica <b>${pe > 0 ? "+" : ""}${pe}% sobre o seu preço</b>${prop ? ` (≈ ${brl(prop[1])} na menor estadia)` : ""}.`)
+      : `A automação sugere <b>${sg.pct > 0 ? "+" : ""}${sg.pct}% sobre a base</b> para este dia${prop ? ` (≈ ${brl(prop[1])} na menor estadia)` : ""}.`;
     if (!(livres > 0)) t += " Como a noite já está vendida ou fechada, nada muda.";
     else if (sg.protegido && prop && mt && prop[1] < mt[1]) t += ` Período protegido (${esc(sg.protegido.nome)}): só sobe, então o preço fica como está.`;
     else if (prop && mt && Math.abs(prop[1] - mt[1]) / mt[1] >= 0.05) t += ` Na próxima rodada automática (7h ou 14h), o preço ${prop[1] > mt[1] ? "sobe" : "desce"} para esse valor.`;
@@ -832,7 +842,9 @@ function previa() {
   const R = resumir(simular(), nomes());
   const op = S.op, pct = Number(S.val), sell_ids = [...S.selL], dates = [...S.selD].sort();
   const tit = { pct: `Prévia: ${sinal(pct)}% sobre o preço no ar (vira a nova base)`, one_night_on: `Prévia: liberar 1 noite com +${pct}%`, one_night_off: "Prévia: tirar a liberação de 1 noite", reset: "Prévia: voltar para a diária base", rebase: "Prévia: redefinir a base" }[op];
-  S.prev = { chave: chave(), R, titulo: tit, exec: () => api("apply", { op, pct, one_night_pct: pct, sell_ids, dates }) };
+  S.prev = { chave: chave(), R, titulo: tit, exec: () => api("apply", { op, pct, one_night_pct: pct, sell_ids, dates,
+    // ajuste manual: célula da tabela em que cada noite está agora (a automação mantém o preço enquanto não mudar de célula)
+    ref_por_data: op === "pct" ? Object.fromEntries(dates.map((d) => [d, S.sug?.[d]?.regra != null ? { regra: S.sug[d].regra, pct: S.sug[d].pct_tabela ?? S.sug[d].pct } : null])) : undefined }) };
   atualizarBotaoGravar(); $("#a-msg").innerHTML = "";
   abrirResumo(S.prev);
 }
@@ -1443,7 +1455,7 @@ function telaAjuda() {
           <div class="x"><span>Nunca vira</span><b>+30% e +10%</b><em>R$ 286</em></div>
         </div>
         <p class="small mute">O ajuste novo <b>substitui</b> o anterior. A conta parte sempre da base.</p>
-        <p class="small"><b>Ajuste manual é sobre o preço no ar e vira a nova base:</b> aplicou −20% à mão? O preço que está na Stays cai 20% e esse resultado passa a ser a base daquelas noites e a automação parte dele. O Desfazer devolve a base anterior.</p></div>
+        <p class="small"><b>Ajuste manual é sobre o preço no ar e vira a nova base.</b> A automação <b>mantém esse preço</b> enquanto a noite ficar na mesma faixa de ocupação e de antecedência da tabela. Se a noite mudar de faixa (ex.: ocupação de 40% para 60%), ela aplica só a diferença entre as faixas em cima do seu preço. O Desfazer devolve a base anterior.</p></div>
       <div><h4>Faixas de noites</h4>
         <table class="aj-t"><tr><th>Mín. noites</th><th>Base</th><th>Com +30%</th></tr>
           <tr><td>2+</td><td>R$ 200</td><td><b>R$ 260</b></td></tr><tr><td>7+</td><td>R$ 180</td><td><b>R$ 234</b></td></tr><tr><td>15+</td><td>R$ 170</td><td><b>R$ 221</b></td></tr></table>
