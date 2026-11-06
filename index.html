@@ -182,6 +182,8 @@ tr.rsel td{background:var(--orange-soft)}
 .g tr.row.off .nm{opacity:.55}
 .nm input{vertical-align:-2px;margin-right:6px}
 .nm .tag{font-size:.68rem;color:var(--mute);margin-left:4px;font-weight:600}
+.nv-st{font-size:.75rem;font-weight:600;padding:1px 6px;border-radius:8px}.nv-st.pen{background:#fdecc8;color:#8a5a00}.nv-st.her{background:#e3f0ff;color:#1f4f8a}.nv-st.ok{background:#e4f5e8;color:#2c6b3a}
+.nv-op{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.nv-or{color:var(--mute);font-size:.8rem}.nv-t td{vertical-align:top}
 /* painel de ação */
 .cal-lay{display:flex;align-items:flex-start;gap:0}
 .cal-main{flex:1;min-width:0}
@@ -479,7 +481,7 @@ function desenharGrade() {
   for (const l of L) {
     const cells = G.cells[l.id] || {};
     const on = S.selL.has(l.id);
-    const tags = [l.is_margem ? "margem" : "", l.is_duplicada ? "duplicado" : "", l.filhos ? `grupo ${l.filhos + 1} un.` : ""].filter(Boolean).join(" · ");
+    const tags = [l.base_status === "pendente" ? "novo · base a confirmar" : "", l.base_status === "herdada" ? "novo · base herdada" : "", l.is_margem ? "margem" : "", l.is_duplicada ? "duplicado" : "", l.filhos ? `grupo ${l.filhos + 1} un.` : ""].filter(Boolean).join(" · ");
     h += `<tr class="row ${on ? "" : "off"}"><th class="nm" title="${esc((l.code ? l.code + " · " : "") + l.nome + (tags ? " (" + tags + ")" : ""))}"><input type="checkbox" data-l="${l.id}" ${on ? "checked" : ""}><b>${esc(l.code || "")}</b>${l.code ? " · " : ""}${esc(nomeCurto(l.nome))}${tags ? `<span class="tag">${tags}</span>` : ""}</th>`;
     for (const d of D) {
       const c = cells[d]; const units = c?.[0] ?? 0, avail = c?.[1], prices = c?.[2], pct = Number(c?.[4] || 0), one = c?.[5];
@@ -806,6 +808,9 @@ async function telaAuto() {
    <h2 style="margin-top:28px">Reação às vendas</h2>
    <p class="mute">Ajusta a sugestão da tabela conforme a <b>recência</b> (dias sem reserva para aquela noite, comparados ao intervalo normal da região) e o <b>ritmo</b> de vendas (reservas da última semana vs. o normal). O freio recua quando não vende e a aceleração avança quando vende rápido. Os números aparecem na grade do calendário, nas linhas abaixo da sugestão.</p>
    <div id="rea">Carregando…</div>
+   <h2 style="margin-top:28px">Anúncios novos</h2>
+   <p class="mute">Quando um anúncio entra na Stays com o preço <b>copiado de outro</b> (preços iguais noite a noite), ele <b>herda a base e o ajuste</b> desse outro e já entra na automação. Se a origem não for encontrada, ele fica <b>fora da automação</b> até alguém confirmar a base aqui.</p>
+   <div id="novos">Carregando…</div>
    <h2 style="margin-top:28px" id="auto-titulo">Rodadas automáticas</h2>
    <p class="mute">Nos horários escolhidos, o servidor calcula a sugestão de todas as regiões e compara com o ajuste que está valendo em cada noite. Em <b>modo teste</b> ele só <b>registra o que faria</b> — nada é gravado na Stays. Use as rodadas abaixo para conferir antes de liberar a gravação.</p>
    <div id="autob">Carregando…</div></div>`;
@@ -816,7 +821,7 @@ async function telaAuto() {
       const r = AG.regioes.find((x) => x.name === S.region) || AG.regioes.find((x) => x.tabela_propria);
       ESC = r?.tabela_propria ? { region: r.name } : { grupo_id: r?.grupo_id ?? AG.grupos[0]?.id }; }
     REA = AG.reacao; REA_ORIG = JSON.stringify(soReacao(REA));
-    desenharEscopo(); desenharRegioes(); desenharReacao(); carregarAuto();
+    desenharEscopo(); desenharRegioes(); desenharReacao(); carregarAuto(); carregarNovos();
     await carregarEscopo();
   } catch (e) { $("#rg").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
 }
@@ -1104,6 +1109,50 @@ function tipRitmo(s) {
   return `${s.res_7d} reserva${s.res_7d === 1 ? "" : "s"} feita${s.res_7d === 1 ? "" : "s"} nos últimos 7 dias para esta noite | Normal nessa antecedência: ${fmtX(s.normal_7d)} por semana` + (s.ritmo == null ? " | Pouco histórico para comparar" : ` | Ritmo: ${fmtX(s.ritmo)}× o normal`);
 }
 
+/* ---------- anúncios novos ---------- */
+let NOVOS = null;
+async function carregarNovos(msg) {
+  const el = $("#novos"); if (!el) return;
+  try { NOVOS = await api("novos_get"); } catch (e) { el.innerHTML = `<p class="msg">${esc(e.message)}</p>`; return; }
+  const ns = NOVOS.novos || [];
+  const pend = ns.filter((n) => n.base_status === "pendente" || !n.base_status), ok = ns.filter((n) => !pend.includes(n));
+  const quando = (d) => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+  const st = (n) => n.base_status === "herdada" ? `<span class="nv-st her">herdou de ${esc(n.origem_code || "")} ${esc(nomeCurto(n.origem_nome || ""))}</span>`
+    : n.base_status === "ok" ? `<span class="nv-st ok">${n.base_origem ? `base de ${esc(n.origem_code || "")} ${esc(nomeCurto(n.origem_nome || ""))}` : "base = preço atual"} (confirmado)</span>`
+    : n.base_status === "pendente" ? `<span class="nv-st pen">aguardando confirmação</span>` : `<span class="nv-st pen">sendo analisado…</span>`;
+  let h = msg ? `<p>${msg}</p>` : "";
+  if (!ns.length) h += `<p class="small mute">Nenhum anúncio novo nos últimos 30 dias.</p>`;
+  if (pend.length) {
+    h += `<p class="small"><b>${pend.length}</b> aguardando confirmação — fora da automação até decidir.</p><table class="t nv-t"><tr><th>Anúncio</th><th>Região</th><th>Entrou</th><th>Base</th></tr>`;
+    for (const n of pend) {
+      const cs = NOVOS.candidatos?.[n.region_name] || [];
+      h += `<tr><td><b>${esc(n.code || "")}</b> ${esc(nomeCurto(n.nome))}<div>${st(n)}</div></td><td>${esc(n.region_name || "—")}</td><td>${quando(n.novo_desde)}</td>
+        <td>${n.base_status === "pendente" ? `<div class="nv-op"><button data-nv-atual="${n.id}">Usar o preço atual como base</button>
+          <span class="nv-or">ou</span> copiar de <select data-nv-orig="${n.id}" style="max-width:240px"><option value="">escolha o anúncio…</option>${cs.map((c) => `<option value="${c.id}">${esc((c.code ? c.code + " · " : "") + nomeCurto(c.nome))}</option>`).join("")}</select>
+          <input type="number" data-nv-pct="${n.id}" value="0" style="width:60px" title="diferença sobre a base do outro">% <button class="prim" data-nv-copiar="${n.id}">Copiar e gravar</button></div>` : `<span class="small mute">o servidor confere a cada poucos minutos</span>`}</td></tr>`;
+    }
+    h += `</table>`;
+  }
+  if (ok.length) h += `<details class="nv-ok" ${pend.length ? "" : "open"}><summary>${ok.length} já resolvido(s) nos últimos 30 dias</summary><table class="t nv-t"><tr><th>Anúncio</th><th>Região</th><th>Entrou</th><th>Base</th></tr>${ok.map((n) => `<tr><td><b>${esc(n.code || "")}</b> ${esc(nomeCurto(n.nome))}</td><td>${esc(n.region_name || "—")}</td><td>${quando(n.novo_desde)}</td><td>${st(n)}</td></tr>`).join("")}</table></details>`;
+  el.innerHTML = h;
+  el.querySelectorAll("[data-nv-atual]").forEach((b) => b.onclick = async () => {
+    const n = ns.find((x) => x.id === b.dataset.nvAtual);
+    if (!confirm(`${n.code || n.nome}: usar o preço que está hoje na Stays como base e colocar na automação?`)) return;
+    b.disabled = true; try { await api("novo_confirmar", { sell_id: n.id, modo: "atual" }); S.grid = null; carregarNovos(`<span class="okmsg">Base confirmada — ${esc(n.code || n.nome)} entra na próxima rodada.</span>`); } catch (e) { alert(e.message); b.disabled = false; }
+  });
+  el.querySelectorAll("[data-nv-copiar]").forEach((b) => b.onclick = async () => {
+    const id = b.dataset.nvCopiar, n = ns.find((x) => x.id === id);
+    const orig = el.querySelector(`[data-nv-orig="${id}"]`).value, pct = Number(el.querySelector(`[data-nv-pct="${id}"]`).value || 0);
+    if (!orig) { alert("Escolha o anúncio de origem."); return; }
+    const on = (NOVOS.candidatos?.[n.region_name] || []).find((c) => c.id === orig);
+    if (!confirm(`${n.code || n.nome}: copiar a base e o ajuste de ${on?.code || on?.nome}${pct ? ` com ${pct > 0 ? "+" : ""}${pct}%` : ""} e GRAVAR os preços na Stays (todas as datas futuras)?`)) return;
+    b.disabled = true; b.textContent = "Gravando…";
+    try { const r = await api("novo_confirmar", { sell_id: id, modo: "copiar", origem: orig, pct }); S.grid = null;
+      carregarNovos(r.erro ? `<span class="msg">Copiado, mas ${r.erro} diária(s) com erro na Stays — tente de novo.</span>` : `<span class="okmsg">Base copiada e ${r.gravadas} diárias gravadas na Stays. Está no Histórico.</span>`); }
+    catch (e) { alert(e.message); b.disabled = false; b.textContent = "Copiar e gravar"; }
+  });
+}
+
 /* ---------- rodadas automáticas (modo teste) ---------- */
 let AUTOCFG = null, AUTOCFG_ORIG = "", AUTO_RUNS = [];
 async function carregarAuto(msg) {
@@ -1308,7 +1357,8 @@ function telaAjuda() {
      <div><h4>Sobe aos poucos</h4>
       <div class="aj-steps2"><div style="height:20%"><span>0%</span></div><div style="height:45%"><span>+20%</span></div><div style="height:70%"><span>+40%</span></div><div style="height:85%"><span>+50%</span></div></div>
       <p class="small mute">Sugestão +50%: no máximo 20 pontos por rodada. Diferença menor que 5 pontos não mexe. Ajuste manual vira a nova base e a automação segue em cima dele.</p>
-      <h4>🔒 Períodos protegidos</h4><p class="small">Natal/Réveillon, janeiro, Carnaval e Semana Santa: a automação <b>só sobe</b> (nunca baixa, sem freio). Na grade aparece 🔒 na linha da sugestão.</p></div>
+      <h4>🔒 Períodos protegidos</h4><p class="small">Natal/Réveillon, janeiro, Carnaval e Semana Santa: a automação <b>só sobe</b> (nunca baixa, sem freio). Na grade aparece 🔒 na linha da sugestão.</p>
+      <h4>🆕 Anúncios novos</h4><p class="small">Se o preço do anúncio novo foi copiado de outro, ele <b>herda a base e o ajuste</b> desse outro e já entra nas rodadas. Se não der para saber a origem, fica <b>fora da automação</b> até alguém confirmar em <i>Automação → Anúncios novos</i> (usar o preço atual ou copiar de outro anúncio ±%). Na grade, o nome mostra o selo "novo".</p></div>
     </div>
     ${onde("Automação → Rodadas automáticas → Ver (por região e diária a diária)", "Automação → Rodadas automáticas → Parâmetros · botão Pausar")}
    </section>
