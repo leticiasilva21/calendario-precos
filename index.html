@@ -134,6 +134,23 @@ tr.rsel td{background:var(--orange-soft)}
 .g .dh.we{background:#f3f4f8}
 .g .dh.sel{background:var(--orange-soft);color:var(--ink);box-shadow:inset 0 -3px 0 var(--orange)}.g .dh.sel small{color:var(--orange)}
 .g td.c{text-align:center;padding:3px 2px;height:52px;width:100px;min-width:100px;max-width:100px;overflow:hidden;box-sizing:border-box;position:relative;cursor:pointer;font-variant-numeric:tabular-nums}
+/* visão limpa */
+.g.limpo td.c .b.up,.g.limpo td.c .b.dn,.g.limpo td.o .b.up,.g.limpo td.o .b.dn{background:none;padding:0 1px}
+.g.limpo .b.up{color:#2c6b3a}.g.limpo .b.dn{color:#a23a2e}
+.g.limpo td.c.full{background:#f6f7f9!important;color:#a9afbb}.g.limpo td.c.full .p{font-weight:500}
+.g.limpo td.c.blk{background:repeating-linear-gradient(135deg,#f6f7f9 0 5px,#eceef2 5px 7px)!important;color:#a9afbb}
+.g.limpo td.c.we:not(.full):not(.blk){background:#fafbfc}
+.g.limpo td.c .b.av{color:#8a91a0;background:none}
+.g.limpo:not(.pers) td.c.sel{box-shadow:none}
+.g.limpo:not(.pers) .dh.sel{background:#fff;box-shadow:inset 0 -2px 0 var(--orange)}.g.limpo:not(.pers) .dh.sel small{color:var(--mute)}
+.g.limpo td.c .sgx{color:var(--mute)}
+.g.limpo tr.occ td.o .mute{color:inherit!important;opacity:.75}
+.g.sem-sinais tr.rit1,.g.sem-sinais tr.rit2{display:none}
+.g td.c .pt{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%}
+.pt{width:7px;height:7px;border-radius:50%}.pt.up{background:var(--orange)}.pt.dn{background:#2c8a4b}
+.lk-sinais{font-size:.68rem;border:0;background:none;color:var(--orange);cursor:pointer;padding:0 0 0 4px;font-weight:700}
+.vis-alt{margin-left:12px;font-weight:500;font-size:.78rem;color:var(--mute)}.vis-alt button{font-size:.74rem;border:1px solid var(--line);background:#fff;padding:1px 8px;cursor:pointer}
+.vis-alt button:first-of-type{border-radius:10px 0 0 10px}.vis-alt button:last-of-type{border-radius:0 10px 10px 0;border-left:0}.vis-alt button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .g td.c{white-space:normal;line-height:1.15}.g td.c .b{white-space:nowrap}.g td.c .b.av{font-size:.62rem;padding:0 2px}
 .g td.c.full{background:var(--occ)!important;color:#8a91a0}
 .g td.c.blk{background:repeating-linear-gradient(135deg,#eef0f4 0 5px,#d9dde5 5px 7px)!important;color:#8a91a0}
@@ -383,6 +400,8 @@ const S = {
   grid: null, sug: null, selL: new Set(), selD: new Set(), op: "pct", val: "",
 };
 try { const f = JSON.parse(localStorage.getItem("cp-dows") || "null"); if (Array.isArray(f)) S.dows = new Set(f); } catch {}
+// visão limpa (padrão, 06/11): cor só no que pede ação; "Visão detalhada" volta as cores antigas
+try { S.detalhado = localStorage.getItem("cp-visao") === "detalhada"; S.sinais = localStorage.getItem("cp-sinais") === "1"; } catch { S.detalhado = false; S.sinais = false; }
 
 function cabecalho() {
   return `<header class="bar-top"><div class="in"><img src="logo-branco.png" alt="Carpediem Homes"><span class="t">Calendário de Preços</span>
@@ -487,8 +506,10 @@ function seloIdade(iso) {
 }
 function legenda() {
   let aberta = true; try { aberta = localStorage.getItem("cp-legenda") !== "0"; } catch {}
-  return `<details class="legenda" id="legenda" ${aberta ? "open" : ""}><summary>Legenda</summary><div class="itens">
-   <span class="it"><span class="escala"></span>Cor da célula: preço atual vs. diária base (verde abaixo até −25%, branco na base, laranja acima até +50%)</span>
+  const alt = `<span class="vis-alt">Visão: <button data-vis="limpa" class="${S.detalhado ? "" : "on"}">Limpa</button><button data-vis="detalhada" class="${S.detalhado ? "on" : ""}">Detalhada</button></span>`;
+  return `<details class="legenda" id="legenda" ${aberta ? "open" : ""}><summary>Legenda ${alt}</summary><div class="itens">
+   ${S.detalhado ? `<span class="it"><span class="escala"></span>Cor da célula: preço atual vs. diária base (verde abaixo até −25%, branco na base, laranja acima até +50%)</span>`
+     : `<span class="it"><i class="pt up" style="position:static;display:inline-block"></i> preço +50% ou mais acima da base · <i class="pt dn" style="position:static;display:inline-block"></i> 20% ou mais abaixo</span>`}
    <span class="it"><span class="sw" style="background:var(--occ)"></span>Reservado / sem unidade livre</span>
    <span class="it"><span class="sw" style="background:repeating-linear-gradient(135deg,#eef0f4 0 4px,#d9dde5 4px 6px)"></span>Bloqueado ou manutenção (sem reserva no dia)</span>
    <span class="it"><b style="color:var(--ink)">2/8 livres</b> unidades livres no dia ÷ total do grupo (anúncios com várias unidades) · na linha de ocupação, <b style="color:var(--ink)">51/92</b> = ocupadas ÷ em operação</span>
@@ -498,6 +519,7 @@ function legenda() {
    ${S.prefixo ? `<span class="it">Nomes sem o prefixo comum da região: <b style="color:var(--ink)">${esc(S.prefixo)}</b></span>` : ""}
    <span class="it"><span class="b up">+10%</span><span class="b n1">1N</span> ajuste gravado · 1 noite liberada</span></div></details>`;
 }
+function corOccLimpa(p) { return p == null ? "#fff" : `rgba(22,41,79,${(0.03 + 0.30 * Math.min(100, Math.max(0, p)) / 100).toFixed(2)})`; }
 function corOcc(p) {
   if (p == null) return "#fff";
   if (p >= 85) return "#c9ebd6"; if (p >= 70) return "#e3f4ea"; if (p >= 50) return "#fdf3d9"; if (p >= 30) return "#fde4d3"; return "#fbd5d1";
@@ -509,11 +531,11 @@ function listaVisivel() {
 function desenharGrade() {
   const G = S.grid, D = datas(), L = listaVisivel();
   const occ = (d) => { const o = G.occ[d]; return o && o[0] ? Math.round(1000 * (1 - o[1] / o[0])) / 10 : null; };
-  let h = `<div class="cal-lay"><div class="cal-main">` + legenda() + `<div class="gridbox"><table class="g" id="tg"><thead><tr><th class="nm"><input type="checkbox" id="all" ${L.every((l) => S.selL.has(l.id)) ? "checked" : ""}> ${L.length} anúncios</th>`;
+  let h = `<div class="cal-lay"><div class="cal-main">` + legenda() + `<div class="gridbox"><table class="g ${S.detalhado ? "" : "limpo"} ${S.detalhado || S.sinais ? "" : "sem-sinais"} ${S.modoSel === "personalizada" ? "pers" : ""}" id="tg"><thead><tr><th class="nm"><input type="checkbox" id="all" ${L.every((l) => S.selL.has(l.id)) ? "checked" : ""}> ${L.length} anúncios</th>`;
   for (const d of D) { const w = dowOf(d); h += `<th class="dh ${w === 0 || w === 6 ? "we" : ""} ${S.selD.has(d) ? "sel" : ""}" data-d="${d}">${fmtD(d)}<small>${DOW[w]}</small></th>`; }
   h += `</tr></thead><tbody><tr class="occ"><th class="nm">Ocupação da região <span class="tag">ocupadas ÷ em operação</span></th>`;
-  for (const d of D) { const p = occ(d), o = G.occ[d]; h += `<td class="o" style="background:${corOcc(p)}" data-tipocc="${d}">${p == null ? "—" : p.toFixed(0) + "%"}<div class="small mute" style="font-weight:600">${o ? o[0] - o[1] + "/" + o[0] : ""}</div></td>`; }
-  h += `</tr><tr class="sug"><th class="nm">Sugestão da automação</th>`;
+  for (const d of D) { const p = occ(d), o = G.occ[d]; h += `<td class="o" style="background:${S.detalhado ? corOcc(p) : corOccLimpa(p)}" data-tipocc="${d}">${p == null ? "—" : p.toFixed(0) + "%"}<div class="small mute" style="font-weight:600">${o ? o[0] - o[1] + "/" + o[0] : ""}</div></td>`; }
+  h += `</tr><tr class="sug"><th class="nm">Sugestão da automação${S.detalhado ? "" : ` <button class="lk-sinais" id="tg-sinais" title="Dias sem reserva e vendas dos últimos 7 dias">${S.sinais ? "▾ esconder sinais" : "▸ sinais de venda"}</button>`}</th>`;
   for (const d of D) { const s = S.sug?.[d]; const mud = s && s.pct != null && s.pct_tabela != null && s.pct !== s.pct_tabela;
     h += `<td class="o small" title="${esc(tipSug(s))}">${s && s.pct != null ? `<span class="b ${s.pct >= 0 ? "up" : "dn"}">${s.pct > 0 ? "+" : ""}${s.pct}%</span>${mud ? `<span class="rea-m">${s.pct < s.pct_tabela ? "▼" : "▲"}</span>` : ""}` : "<span class='mute'>·</span>"}${s?.protegido ? `<span class="prot" title="Período protegido: ${esc(s.protegido.nome)}">🔒</span>` : ""}</td>`; }
   h += `</tr><tr class="rit1 fixa"><th class="nm">Dias sem reserva <span class="tag">check-in no dia · × o normal</span></th>`;
@@ -539,14 +561,18 @@ function desenharGrade() {
       }
       const bloq = full && Number(c?.[6] || 0) > 0 && !Number(c?.[7] || 0); // c[6] bloqueadas, c[7] reservadas (tabela de reservas)
       const badges = (pct ? `<span class="b ${pct > 0 ? "up" : "dn"}">${pct > 0 ? "+" : ""}${pct}%</span>` : "") + (one != null ? `<span class="b n1">1N</span>` : "") + (units > 1 ? `<span class="b av" title="${avail ?? "?"} de ${units} unidades do grupo livres">${avail ?? "?"}/${units} livre${avail === 1 ? "" : "s"}</span>` : "");
-      const bg = corDesvio(dv);
-      h += `<td class="c ${full ? (bloq ? "blk" : "full") : ""} ${sel ? "sel" : ""}" data-c="${l.id}|${d}"${bg ? ` style="background:${bg}"` : ""}><span class="p">${mt ? brl(mt[1]) : "—"}</span>${sgTxt}${badges}</td>`;
+      const bg = S.detalhado ? corDesvio(dv) : null;
+      const we = !S.detalhado && (dowOf(d) === 0 || dowOf(d) === 6) ? "we" : "";
+      const ponto = !S.detalhado && dv != null && (dv >= 50 || dv <= -20) ? `<i class="pt ${dv > 0 ? "up" : "dn"}" title="Preço ${dv > 0 ? "+" : ""}${Math.round(dv)}% em relação à base"></i>` : "";
+      h += `<td class="c ${full ? (bloq ? "blk" : "full") : ""} ${sel ? "sel" : ""} ${we}" data-c="${l.id}|${d}"${bg ? ` style="background:${bg}"` : ""}>${ponto}<span class="p">${mt ? brl(mt[1]) : "—"}</span>${sgTxt}${badges}</td>`;
     }
     h += `</tr>`;
   }
   h += `</tbody></table></div></div>` + painelAcao() + `</div>`;
   $("#gridarea").innerHTML = h;
   ligarGrade();
+  document.querySelectorAll("[data-vis]").forEach((b) => b.onclick = (e) => { e.preventDefault(); S.detalhado = b.dataset.vis === "detalhada"; try { localStorage.setItem("cp-visao", S.detalhado ? "detalhada" : "limpa"); } catch {} desenharGrade(); });
+  const bs = $("#tg-sinais"); if (bs) bs.onclick = (e) => { e.stopPropagation(); S.sinais = !S.sinais; try { localStorage.setItem("cp-sinais", S.sinais ? "1" : "0"); } catch {} desenharGrade(); };
 }
 /* painel lateral: resumo da seleção + uma linha por ação; o → abre o resumo antes → depois para confirmar */
 function painelAcao() { return `<aside class="painel" id="painel">${painelConteudo()}</aside>`; }
