@@ -1244,7 +1244,7 @@ function desenharAuto(msg) {
      <label class="au-l"><span>Modo</span><select id="au-modo"><option value="teste" ${c.modo !== "gravar" ? "selected" : ""}>Teste — só registra</option><option value="gravar" ${c.modo === "gravar" ? "selected" : ""}>Gravar na Stays</option></select><small>em "Gravar", cada rodada grava sozinha o "iria para"</small></label>
      <label class="au-l"><span>Horários</span><input id="au-hor" value="${c.horarios.join(", ")}" style="width:90px"><small>horas cheias, separadas por vírgula</small></label>
      ${linha("au-hz", "Olhar para frente", c.horizonte, "dias a partir de hoje")}
-     ${linha("au-passo", "Passo máximo", c.passo_max, "pontos de % por rodada (sobe/desce aos poucos)")}
+     ${linha("au-passo", "Passo máximo", c.passo_max, "pontos de % por rodada · 300 = sem limite (vai direto à sugestão)")}
      ${linha("au-ult", "Última hora", c.passo_livre_dias ?? 7, "dias antes do check-in em que vai direto à sugestão, sem passo")}
      ${linha("au-min", "Diferença mínima", c.min_dif, "pontos: abaixo disso não mexe")}
      ${linha("au-trava", "Trava do ajuste manual", c.trava_manual_dias, "dias em que a noite ajustada à mão fica fora")}
@@ -1424,9 +1424,9 @@ function telaAjuda() {
     <div class="aj-cols">
      <div><div class="aj-clock"><span>7h</span><span>14h</span></div>
       <p>Duas vezes por dia o servidor compara a sugestão de cada noite (próximos <b>90 dias</b>) com o preço atual e <b>grava na Stays</b> o que mudar, região por região. Tudo fica no Histórico como "automação (rodada N)", com Desfazer. Dá para voltar ao modo teste (só registra) em Parâmetros.</p></div>
-     <div><h4>Sobe aos poucos</h4>
-      <div class="aj-steps2"><div style="height:20%"><span>0%</span></div><div style="height:45%"><span>+20%</span></div><div style="height:70%"><span>+40%</span></div><div style="height:85%"><span>+50%</span></div></div>
-      <p class="small mute">Sugestão +50%: no máximo 20 pontos por rodada. <b>Última hora</b> (até 7 dias do check-in): vai direto à sugestão. Diferença menor que 5 pontos não mexe. Ajuste manual vira a nova base e a automação segue em cima dele.</p>
+     <div><h4>Vai direto à sugestão</h4>
+      <div class="aj-steps2"><div style="height:20%"><span>0%</span></div><div style="height:85%"><span>+50%</span></div></div>
+      <p class="small mute">Sugestão +50%: a rodada já grava +50% (sem limite por rodada, desde 06/11). Diferença menor que 5 pontos não mexe. Ajuste manual vira a nova base e a automação segue em cima dele.</p>
       <h4>🔒 Períodos protegidos</h4><p class="small">Natal/Réveillon, janeiro, Carnaval e Semana Santa: a automação <b>só sobe</b> (nunca baixa, sem freio). Na grade aparece 🔒 na linha da sugestão.</p>
       <h4>✦ Assistente (IA)</h4><p class="small">Botão laranja no canto da tela. Pergunte sobre ocupação, bases e sugestões, ou peça "suba 10% a base do X em dezembro" / "copie a base do X para o Y com −10%". A IA só <b>propõe</b>: aparece um cartão e nada vai para a Stays sem você clicar em <b>Confirmar e gravar</b>. Gasto do mês aparece no topo do chat (limite US$ 40).</p>
       <h4>📈 Sugestões de base</h4><p class="small">A aba <i>Sugestões de base</i> lista as unidades que, nos próximos 6 meses, já venderam bem acima da região e do mesmo período do ano passado (mesma antecedência). Sugere +10% ou +15% na <b>base</b> do mês; você marca, ajusta o % e aplica com prévia. A automação segue por cima da nova base.</p>
