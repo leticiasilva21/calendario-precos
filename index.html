@@ -117,6 +117,8 @@ table.g{border-collapse:separate;border-spacing:0;font-size:.8rem}
 .pa-guia{margin:12px 14px 0;padding:10px 12px;background:var(--orange-soft);border-radius:8px;font-size:.82rem;line-height:1.4}
 .pa-guia ol{margin:6px 0 0;padding-left:18px}.pa-guia li{margin:3px 0}
 .au-grav{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 12px;margin:8px 0;border-radius:8px;background:var(--orange-soft)}
+.pa-desc{font-size:.8rem;color:var(--mute);margin:-4px 0 6px}.pa-pers{background:var(--orange-soft);color:#a3441a;font-weight:700;border-radius:999px;padding:1px 8px}
+.pa-dica{font-size:.74rem;color:var(--mute);margin:8px 0 0;line-height:1.35}
 .massa{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 8px}.massa button{padding:3px 10px;font-size:.8rem}.massa .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
 tr.rsel td{background:var(--orange-soft)}
 .rea-nmin{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.rea-nmin label{font-weight:700}
@@ -375,9 +377,9 @@ function telaCal() {
   document.querySelectorAll("[data-dow]").forEach((b) => (b.onclick = () => {
     const d = +b.dataset.dow; S.dows.has(d) ? S.dows.delete(d) : S.dows.add(d);
     localStorage.setItem("cp-dows", JSON.stringify([...S.dows])); const on = b.classList.toggle("on"); b.setAttribute("aria-pressed", on); b.title = on ? "Ligado: entra na seleção" : "Desligado: fora da seleção";
-    if (S.grid) { selecionarDatasPelosDias(); desenharGrade(); } // clicar num dia da semana seleciona as datas do período nos dias ligados
+    if (S.grid) { aplicarFiltro(); desenharGrade(); } // dias da semana definem a seleção na hora
   }));
-  $("#f-busca").oninput = (e) => { S.busca = e.target.value; if (S.grid) desenharGrade(); };
+  $("#f-busca").oninput = (e) => { S.busca = e.target.value; if (S.grid) { if (S.modoSel !== "personalizada") aplicarFiltro(); desenharGrade(); } };
   $("#f-refresh").onclick = async (e) => {
     if (!S.region) return;
     const b = e.target; b.disabled = true; b.textContent = "Atualizando…";
@@ -387,6 +389,14 @@ function telaCal() {
   };
   if (S.grid) desenharGrade(); else if (S.region) carregarGrade();
 }
+/* seleção pelo topo: período + dias da semana + imóveis (todos, menos os desmarcados e as margens de manobra) */
+function aplicarFiltro() {
+  S.modoSel = "filtro";
+  selecionarDatasPelosDias();
+  S.excl ??= new Set();
+  S.selL = new Set(listaVisivel().filter((l) => !S.excl.has(l.id)).map((l) => l.id));
+}
+const personalizar = () => { S.modoSel = "personalizada"; };
 function selecionarDatasPelosDias() {
   S.selD = new Set(datas().filter((d) => S.dows.has(dowOf(d)) && d >= hoje()));
 }
@@ -400,7 +410,8 @@ async function carregarGrade() {
     if (seq !== S.loadSeq) return;
     S.prefixo = detectarPrefixo((g.listings || []).map((l) => l.nome));
     S.grid = g; S.gridVer = (S.gridVer || 0) + 1; S.prev = null; S.sug = Object.fromEntries((s.dias || []).map((x) => [x.date, x]));
-    S.selL = new Set(); S.selD = new Set(); // abre sem seleção: o painel orienta como selecionar
+    S.excl = new Set((g.listings || []).filter((l) => l.is_margem).map((l) => l.id)); // margens de manobra começam fora
+    aplicarFiltro();
     $("#f-info").innerHTML = seloIdade(g.synced_at);
     desenharGrade();
   } catch (err) { if (seq === S.loadSeq) $("#gridarea").innerHTML = `<p class="wrap msg">${esc(err.message)}</p>`; }
@@ -503,16 +514,16 @@ function painelConteudo() {
   const sugTxt = !sugs.length ? "sem regra nas datas" : sMin === sMax ? `${sinal(sMin)}%` : `${sinal(sMin)}% a ${sinal(sMax)}%`;
   const vazio = !n || !m;
   const linha = (op, nome, campo, dica) => `<div class="pa-l"><div><b>${nome}</b>${dica ? `<small>${dica}</small>` : ""}</div>${campo || ""}<button class="prim ir" data-op="${op}" ${vazio ? "disabled" : ""} title="Abre o resumo antes → depois para confirmar">→</button></div>`;
-  const guia = vazio ? `<div class="pa-guia"><b>Para um ajuste manual:</b><ol>
-     <li>No topo, escolha o <b>período</b> (De / Até) e os <b>dias da semana</b>.</li>
-     <li>Clique em <b>Selecionar datas</b> abaixo — ou clique nos dias no cabeçalho, ou arraste na grade.</li>
-     <li>Marque os <b>imóveis</b> (caixinhas à esquerda) ou clique em <b>Todos os imóveis</b>.</li>
-     <li>Escolha a ação e clique em <b>→</b> para ver a prévia antes de gravar.</li></ol></div>` : "";
-  return guia + `<div class="pa-sel"><div class="pa-t">Seleção</div>
-     <div class="pa-n">${n} anúncio${n === 1 ? "" : "s"} × ${m} data${m === 1 ? "" : "s"}</div>
+  const pers = S.modoSel === "personalizada";
+  const dl = [1, 2, 3, 4, 5, 6, 0].filter((d) => S.dows.has(d));
+  const diasTxt = dl.length === 7 ? "Todos os dias" : dl.length ? dl.map((d) => ["Domingos", "Segundas", "Terças", "Quartas", "Quintas", "Sextas", "Sábados"][d]).join(", ") : "Nenhum dia da semana ligado";
+  const desc = pers ? `<span class="pa-pers">Seleção personalizada</span> (escolhida na grade)` : `${esc(diasTxt)} · ${fmtD(S.from < hoje() ? hoje() : S.from)} a ${fmtD(S.to)} · ${esc(S.region)}`;
+  return `<div class="pa-sel"><div class="pa-t">Vai alterar</div>
+     <div class="pa-n">${n} imóve${n === 1 ? "l" : "is"} × ${m} noite${m === 1 ? "" : "s"}</div>
+     <div class="pa-desc">${desc}</div>
      <div class="pa-k"><span>diária média hoje</span><b>${qt ? brl(soma / qt) : "—"}</b></div>
      <div class="pa-k"><span>ocupação média da região</span><b>${occM == null ? "—" : Math.round(occM) + "%"}</b></div>
-     <div class="pa-b"><button id="p-datas" title="Datas do período com os dias da semana marcados">Selecionar datas</button><button id="p-imoveis">Todos os imóveis</button><button id="p-limpa" ${n || m ? "" : "disabled"}>Limpar</button></div></div>
+     ${pers ? `<div class="pa-b"><button id="p-filtro">Voltar ao filtro do topo</button></div>` : `<p class="pa-dica">Mude o período, os dias da semana ou desmarque imóveis para ajustar. Para escolher noites específicas, arraste na grade.</p>`}</div>
    <div class="pa-acoes">
      ${linha("pct", "Ajustar diária", `<label class="pa-in"><input id="p-pct" type="number" step="1" value="${esc(S.vPct ?? "")}" placeholder="-10"><span>%</span></label>`, `sobre a base · ${L.PCT_MIN}% a +${L.PCT_MAX}%`)}
      ${linha("one_night_on", "Liberar 1 noite", `<label class="pa-in"><input id="p-1n" type="number" step="1" min="0" value="${esc(S.v1n ?? "")}" placeholder="30"><span>%</span></label>`, "acima da diária mínima")}
@@ -536,9 +547,7 @@ function ligarPainel() {
     previa();
   }));
   [i1, i2].forEach((inp) => inp && (inp.onkeydown = (e) => { if (e.key === "Enter") inp.closest(".pa-l").querySelector("[data-op]").click(); }));
-  $("#p-datas").onclick = () => { selecionarDatasPelosDias(); pintarSelecao(); };
-  $("#p-imoveis").onclick = () => { S.selL = new Set(listaVisivel().filter((l) => !l.is_margem).map((l) => l.id)); if (!S.selD.size) selecionarDatasPelosDias(); pintarSelecao(); };
-  $("#p-limpa").onclick = () => { S.selL = new Set(); S.selD = new Set(); pintarSelecao(); };
+  if ($("#p-filtro")) $("#p-filtro").onclick = () => { aplicarFiltro(); pintarSelecao(); };
 }
 function atualizarPainel() {
   const p = $("#painel"); if (!p) return;
@@ -570,19 +579,21 @@ function ligarGrade() {
   $("#legenda").ontoggle = (e) => { try { localStorage.setItem("cp-legenda", e.target.open ? "1" : "0"); } catch {} };
   const L = listaVisivel(), D = datas(), idxL = new Map(L.map((l, i) => [l.id, i])), idxD = new Map(D.map((d, i) => [d, i]));
   // marcou imóvel e ainda não há datas: usa o período e os dias da semana ligados lá em cima
-  const datasSeVazio = () => { if (S.selL.size && !S.selD.size) selecionarDatasPelosDias(); };
-  $("#all").onchange = (e) => { for (const l of L) e.target.checked ? S.selL.add(l.id) : S.selL.delete(l.id); datasSeVazio(); pintarSelecao(); };
+  // no modo filtro, as caixinhas definem quais imóveis entram (as datas seguem o topo)
+  const marca = (id, on) => { if (on) { S.selL.add(id); S.excl?.delete(id); } else { S.selL.delete(id); if (S.modoSel !== "personalizada") (S.excl ??= new Set()).add(id); } };
+  $("#all").onchange = (e) => { for (const l of L) marca(l.id, e.target.checked); if (S.modoSel !== "personalizada") selecionarDatasPelosDias(); pintarSelecao(); };
   document.querySelectorAll("[data-l]").forEach((c) => (c.onclick = (e) => {
     const i = idxL.get(c.dataset.l);
-    if (e.shiftKey && S.ancL != null) { const [a, b] = [Math.min(S.ancL, i), Math.max(S.ancL, i)]; for (let k = a; k <= b; k++) c.checked ? S.selL.add(L[k].id) : S.selL.delete(L[k].id); }
-    else c.checked ? S.selL.add(c.dataset.l) : S.selL.delete(c.dataset.l);
-    S.ancL = i; datasSeVazio(); pintarSelecao();
+    if (e.shiftKey && S.ancL != null) { const [a, b] = [Math.min(S.ancL, i), Math.max(S.ancL, i)]; for (let k = a; k <= b; k++) marca(L[k].id, c.checked); }
+    else marca(c.dataset.l, c.checked);
+    if (S.modoSel !== "personalizada" && !S.selD.size) selecionarDatasPelosDias();
+    S.ancL = i; pintarSelecao();
   }));
   document.querySelectorAll("th.dh").forEach((th) => (th.onclick = (e) => {
     const d = th.dataset.d; if (d < hoje()) return; const j = idxD.get(d);
     if (e.shiftKey && S.ancD != null) { const [a, b] = [Math.min(S.ancD, j), Math.max(S.ancD, j)]; for (let k = a; k <= b; k++) if (D[k] >= hoje()) S.selD.add(D[k]); }
     else S.selD.has(d) ? S.selD.delete(d) : S.selD.add(d);
-    S.ancD = j; pintarSelecao();
+    personalizar(); S.ancD = j; pintarSelecao();
   }));
   /* arrasto estilo planilha: clique = 1 célula; arrastar = retângulo; Shift+clique estende do ponto inicial; Ctrl/Cmd soma à seleção atual */
   const aplicarRet = () => {
@@ -590,7 +601,7 @@ function ligarGrade() {
     const ls = new Set(soma ? baseL : []), ds = new Set(soma ? baseD : []);
     for (let k = Math.min(r0, r1); k <= Math.max(r0, r1); k++) ls.add(L[k].id);
     for (let k = Math.min(c0, c1); k <= Math.max(c0, c1); k++) if (D[k] >= hoje()) ds.add(D[k]);
-    S.selL = ls; S.selD = ds; pintarSelecao();
+    S.selL = ls; S.selD = ds; personalizar(); pintarSelecao();
   };
   const tip = $("#tip");
   document.querySelectorAll("td.c").forEach((td) => {
@@ -1261,7 +1272,7 @@ function telaAjuda() {
     <h3>3. Ajuste manual em 4 passos</h3>
     <div class="aj-steps">
      <div><span class="aj-n">1</span><b>Período e dias</b><p>No topo: <i>De / Até</i> e os dias da semana ligados (azul = entra, tracejado = fora).</p><div class="aj-chips"><span class="on">Sex</span><span class="on">Sáb</span><span>Dom</span><span>Seg</span></div></div>
-     <div><span class="aj-n">2</span><b>Selecione</b><p>Painel → <i>Selecionar datas</i> e <i>Todos os imóveis</i>, ou arraste na grade como planilha (Shift estende, Ctrl/Cmd soma).</p><div class="aj-selmock"><i></i><i class="s"></i><i class="s"></i><i></i><i></i><i class="s"></i><i class="s"></i><i></i></div></div>
+     <div><span class="aj-n">2</span><b>Selecione</b><p>O que está no topo <b>já é a seleção</b>: período + dias da semana + imóveis marcados. Desmarque um imóvel para tirá-lo. Para noites específicas, arraste na grade (vira <i>seleção personalizada</i>; o painel tem <i>Voltar ao filtro</i>).</p><div class="aj-selmock"><i></i><i class="s"></i><i class="s"></i><i></i><i></i><i class="s"></i><i class="s"></i><i></i></div></div>
      <div><span class="aj-n">3</span><b>Escolha a ação</b><p>No painel lateral: <i>Ajustar diária</i> (%), <i>Liberar 1 noite</i>, <i>Tirar 1 noite</i>, <i>Voltar à base</i> ou <i>Sugestão da automação</i> → clique na seta.</p><div class="aj-pa"><span>Ajustar diária</span><span class="v">-10 %</span><span class="go">→</span></div></div>
      <div><span class="aj-n">4</span><b>Confira e confirme</b><p>Abre o resumo <b>antes → depois</b>. Só grava ao clicar em <i>Confirmar</i>.</p><div class="aj-kpi"><span><b>120</b>mudam</span><span class="up-t"><b>80</b>sobem</span><span class="dn-t"><b>40</b>descem</span><span><b>+6%</b>média</span></div></div>
     </div>
