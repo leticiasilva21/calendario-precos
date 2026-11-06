@@ -145,7 +145,8 @@ tr.rsel td{background:var(--orange-soft)}
 .g.limpo:not(.pers) .dh.sel{background:#fff;box-shadow:inset 0 -2px 0 var(--orange)}.g.limpo:not(.pers) .dh.sel small{color:var(--mute)}
 .g.limpo td.c .sgx{color:var(--mute)}
 .g.limpo tr.occ td.o .mute{color:inherit!important;opacity:.75}
-.g.sem-sinais tr.rit1,.g.sem-sinais tr.rit2{display:none}
+.g.sem-sinais tr.rit2{display:none}
+.g.limpo td.sv-alerta{color:#a23a2e;font-weight:700}.g.limpo td.sv-alerta .rit-x{color:#a23a2e}
 .g td.c .pt{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%}
 .pt{width:7px;height:7px;border-radius:50%}.pt.up{background:var(--orange)}.pt.dn{background:#2c8a4b}
 .lk-sinais{font-size:.68rem;border:0;background:none;color:var(--orange);cursor:pointer;padding:0 0 0 4px;font-weight:700}
@@ -511,7 +512,7 @@ function legenda() {
   const alt = `<span class="vis-alt">Visão: <button data-vis="limpa" class="${S.detalhado ? "" : "on"}">Limpa</button><button data-vis="detalhada" class="${S.detalhado ? "on" : ""}">Detalhada</button></span>`;
   return `<details class="legenda" id="legenda" ${aberta ? "open" : ""}><summary>Legenda ${alt}</summary><div class="itens">
    ${S.detalhado ? `<span class="it"><span class="escala"></span>Cor da célula: preço atual vs. diária base (verde abaixo até −25%, branco na base, laranja acima até +50%)</span>`
-     : `<span class="it"><i class="pt up" style="position:static;display:inline-block"></i> preço +50% ou mais acima da base · <i class="pt dn" style="position:static;display:inline-block"></i> 20% ou mais abaixo</span>`}
+     : `<span class="it"><i class="pt up" style="position:static;display:inline-block"></i> preço +50% ou mais acima da base · <i class="pt dn" style="position:static;display:inline-block"></i> 20% ou mais abaixo</span><span class="it">Dias sem reserva em <b style="color:#a23a2e">vermelho</b> = 2,5× o intervalo normal ou mais (a venda parou)</span>`}
    <span class="it"><span class="sw" style="background:var(--occ)"></span>Reservado / sem unidade livre</span>
    <span class="it"><span class="sw" style="background:repeating-linear-gradient(135deg,#eef0f4 0 4px,#d9dde5 4px 6px)"></span>Bloqueado ou manutenção (sem reserva no dia)</span>
    <span class="it"><b style="color:var(--ink)">2/8 livres</b> unidades livres no dia ÷ total do grupo (anúncios com várias unidades) · na linha de ocupação, <b style="color:var(--ink)">51/92</b> = unidades <b>reservadas</b> ÷ em operação (bloqueios e uso do proprietário não contam)</span>
@@ -537,11 +538,12 @@ function desenharGrade() {
   for (const d of D) { const w = dowOf(d); h += `<th class="dh ${w === 0 || w === 6 ? "we" : ""} ${S.selD.has(d) ? "sel" : ""}" data-d="${d}">${fmtD(d)}<small>${DOW[w]}</small></th>`; }
   h += `</tr></thead><tbody><tr class="occ"><th class="nm">Ocupação da região <span class="tag" title="Só reservas de verdade. Bloqueios, manutenção e uso do proprietário não contam como ocupado.">reservadas ÷ em operação</span></th>`;
   for (const d of D) { const p = occ(d), o = G.occ[d]; h += `<td class="o" style="background:${S.detalhado ? corOcc(p) : corOccLimpa(p)}" data-tipocc="${d}">${p == null ? "—" : p.toFixed(0) + "%"}<div class="small mute" style="font-weight:600">${o ? o[0] - o[1] + "/" + o[0] : ""}</div></td>`; }
-  h += `</tr><tr class="sug"><th class="nm">Sugestão da automação${S.detalhado ? "" : ` <button class="lk-sinais" id="tg-sinais" title="Dias sem reserva e vendas dos últimos 7 dias">${S.sinais ? "▾ esconder sinais" : "▸ sinais de venda"}</button>`}</th>`;
+  h += `</tr><tr class="sug"><th class="nm">Sugestão da automação${S.detalhado ? "" : ` <button class="lk-sinais" id="tg-sinais" title="Mostrar a linha de vendas dos últimos 7 dias">${S.sinais ? "▾ esconder vendas 7 dias" : "▸ vendas 7 dias"}</button>`}</th>`;
   for (const d of D) { const s = S.sug?.[d]; const mud = s && s.pct != null && s.pct_tabela != null && s.pct !== s.pct_tabela;
     h += `<td class="o small" title="${esc(tipSug(s))}">${s && s.pct != null ? `<span class="b ${s.pct >= 0 ? "up" : "dn"}">${s.pct > 0 ? "+" : ""}${s.pct}%</span>${mud ? `<span class="rea-m">${s.pct < s.pct_tabela ? "▼" : "▲"}</span>` : ""}` : "<span class='mute'>·</span>"}${s?.protegido ? `<span class="prot" title="Período protegido: ${esc(s.protegido.nome)}">🔒</span>` : ""}</td>`; }
   h += `</tr><tr class="rit1 fixa"><th class="nm">Dias sem reserva <span class="tag">check-in no dia · × o normal</span></th>`;
-  for (const d of D) { const s = S.sug?.[d]; h += `<td class="o small" style="background:${corSemVenda(s)}" title="${esc(tipRecencia(s))}">${s?.sem_venda ?? "—"}${s?.vezes != null ? `<div class="rit-x">${fmtX(s.vezes)}× normal</div>` : ""}</td>`; }
+  for (const d of D) { const s = S.sug?.[d]; const alerta = !S.detalhado && s?.vezes != null && s.vezes >= 2.5;
+    h += `<td class="o small ${alerta ? "sv-alerta" : ""}" style="${S.detalhado ? `background:${corSemVenda(s)}` : ""}" title="${esc(tipRecencia(s))}">${s?.sem_venda ?? "—"}${s?.vezes != null ? `<div class="rit-x">${fmtX(s.vezes)}× normal</div>` : ""}</td>`; }
   h += `</tr><tr class="rit2 fixa"><th class="nm">Vendas nos últimos 7 dias <span class="tag">vs. normal</span></th>`;
   for (const d of D) { const s = S.sug?.[d]; h += `<td class="o small" style="background:${corRitmo(s?.ritmo)}" title="${esc(tipRitmo(s))}">${s ? `${s.res_7d}${s.ritmo != null ? `<div class="rit-x">${fmtX(s.ritmo)}×</div>` : ""}` : "—"}</td>`; }
   h += `</tr>`;
