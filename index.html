@@ -537,7 +537,7 @@ function ligarPainel() {
   }));
   [i1, i2].forEach((inp) => inp && (inp.onkeydown = (e) => { if (e.key === "Enter") inp.closest(".pa-l").querySelector("[data-op]").click(); }));
   $("#p-datas").onclick = () => { selecionarDatasPelosDias(); pintarSelecao(); };
-  $("#p-imoveis").onclick = () => { S.selL = new Set(listaVisivel().filter((l) => !l.is_margem).map((l) => l.id)); pintarSelecao(); };
+  $("#p-imoveis").onclick = () => { S.selL = new Set(listaVisivel().filter((l) => !l.is_margem).map((l) => l.id)); if (!S.selD.size) selecionarDatasPelosDias(); pintarSelecao(); };
   $("#p-limpa").onclick = () => { S.selL = new Set(); S.selD = new Set(); pintarSelecao(); };
 }
 function atualizarPainel() {
@@ -569,12 +569,14 @@ function ligarGrade() {
   fixarTopo();
   $("#legenda").ontoggle = (e) => { try { localStorage.setItem("cp-legenda", e.target.open ? "1" : "0"); } catch {} };
   const L = listaVisivel(), D = datas(), idxL = new Map(L.map((l, i) => [l.id, i])), idxD = new Map(D.map((d, i) => [d, i]));
-  $("#all").onchange = (e) => { for (const l of L) e.target.checked ? S.selL.add(l.id) : S.selL.delete(l.id); pintarSelecao(); };
+  // marcou imóvel e ainda não há datas: usa o período e os dias da semana ligados lá em cima
+  const datasSeVazio = () => { if (S.selL.size && !S.selD.size) selecionarDatasPelosDias(); };
+  $("#all").onchange = (e) => { for (const l of L) e.target.checked ? S.selL.add(l.id) : S.selL.delete(l.id); datasSeVazio(); pintarSelecao(); };
   document.querySelectorAll("[data-l]").forEach((c) => (c.onclick = (e) => {
     const i = idxL.get(c.dataset.l);
     if (e.shiftKey && S.ancL != null) { const [a, b] = [Math.min(S.ancL, i), Math.max(S.ancL, i)]; for (let k = a; k <= b; k++) c.checked ? S.selL.add(L[k].id) : S.selL.delete(L[k].id); }
     else c.checked ? S.selL.add(c.dataset.l) : S.selL.delete(c.dataset.l);
-    S.ancL = i; pintarSelecao();
+    S.ancL = i; datasSeVazio(); pintarSelecao();
   }));
   document.querySelectorAll("th.dh").forEach((th) => (th.onclick = (e) => {
     const d = th.dataset.d; if (d < hoje()) return; const j = idxD.get(d);
