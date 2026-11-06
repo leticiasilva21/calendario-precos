@@ -1322,6 +1322,26 @@ async function carregarNovos(msg) {
   });
 }
 
+/* ---------- regra de 1 noite por ocupação (06/11/2026) ---------- */
+async function carregarUmaNoite(msg) {
+  const box = $("#un-box"); if (!box) return;
+  try {
+    const r = await api("uma_noite_get"); const c = r.config, u = r.ultima;
+    const tot = (u?.regioes || []).reduce((a, x) => ({ liga: a.liga + (x.liga || 0), desliga: a.desliga + (x.desliga || 0), erro: a.erro + (x.erro || 0) }), { liga: 0, desliga: 0, erro: 0 });
+    const n = (id, v, w = 60) => `<input id="${id}" type="number" value="${v}" style="width:${w}px">`;
+    box.innerHTML = `<h3 style="margin:12px 0 4px">🌙 1 noite por ocupação <span class="au-st ${c.ativo ? "on" : "off"}" style="display:inline;padding:2px 8px">${c.ativo ? "● ligada" : "❚❚ desligada"}</span></h3>
+      <p class="small mute">Quando a ocupação da região numa noite fica abaixo do limite, libera a faixa de 1 noite com acréscimo sobre a menor faixa. Se a ocupação subir, volta ao mínimo de antes. Nos últimos dias antes da noite, o limite passa a ser o "limite final". Não mexe em faixa de 1 noite feita à mão nem nos períodos protegidos acima. Roda a cada 5 minutos e aparece no Histórico como "regra 1 noite". As noites sanduíche usam o mesmo acréscimo da automação de noites sanduíche.</p>
+      <p>Liberar 1 noite com ${n("un-pct", c.pct)}% de acréscimo quando a ocupação for menor que ${n("un-lim", c.limiar)}%;
+      nos últimos ${n("un-dias", c.dias_final, 50)} dias, menor que ${n("un-limf", c.limiar_final)}%.
+      Olhar ${n("un-hz", c.horizonte, 50)} dias para frente · regiões com pelo menos ${n("un-uni", c.unidades_min, 50)} unidades.</p>
+      <p><button id="un-toggle">${c.ativo ? "Desligar" : "Ligar"}</button> <button class="prim" id="un-save">Salvar</button> <span id="un-msg">${msg || ""}</span></p>
+      <p class="small mute">${u ? `Última rodada ${fmtHora(u.at)}: ${tot.liga} noites ligadas, ${tot.desliga} desligadas${tot.erro ? `, <span class="msg">${tot.erro} com erro</span>` : ""} (${(u.regioes || []).length} regiões).` : "Ainda não rodou."}
+      Fora: nomes com ${(c.excluir_nomes || []).join(", ")}.</p>`;
+    const cfg = (ativo) => ({ ...c, ativo, pct: $("#un-pct").value, limiar: $("#un-lim").value, limiar_final: $("#un-limf").value, dias_final: $("#un-dias").value, horizonte: $("#un-hz").value, unidades_min: $("#un-uni").value });
+    $("#un-save").onclick = async () => { try { await api("uma_noite_save", { config: cfg(c.ativo) }); await carregarUmaNoite(`<span class="okmsg">Salvo.</span>`); } catch (e) { $("#un-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; } };
+    $("#un-toggle").onclick = async () => { try { await api("uma_noite_save", { config: cfg(!c.ativo) }); await carregarUmaNoite(`<span class="okmsg">${c.ativo ? "Desligada" : "Ligada"}.</span>`); } catch (e) { $("#un-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; } };
+  } catch (e) { box.innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
+}
 /* ---------- rodadas automáticas (modo teste) ---------- */
 let AUTOCFG = null, AUTOCFG_ORIG = "", AUTO_RUNS = [];
 async function carregarAuto(msg) {
@@ -1340,6 +1360,7 @@ function desenharAuto(msg) {
      ${(c.protegidos || []).map((p, i) => `<tr><td><input data-pr="${i}" data-k="nome" value="${esc(p.nome)}" style="width:170px"></td><td><input type="date" data-pr="${i}" data-k="de" value="${p.de}" style="width:140px"></td><td><input type="date" data-pr="${i}" data-k="ate" value="${p.ate}" style="width:140px"></td>
        <td><select data-pr="${i}" data-k="regra"><option value="so_sobe" ${p.regra === "so_sobe" ? "selected" : ""}>só sobe</option><option value="fora" ${p.regra === "fora" ? "selected" : ""}>fora da automação</option></select></td><td><button class="x" data-prdel="${i}" title="Apagar">×</button></td></tr>`).join("")}</table>
      <p><button id="pr-add">+ período</button> <button class="prim" id="pr-save">Salvar períodos</button> <span id="pr-msg"></span></p></div>
+   <div class="au-prot" id="un-box"><h3 style="margin:12px 0 4px">🌙 1 noite por ocupação</h3><p class="small mute">Carregando…</p></div>
    <details class="au-par"><summary>Parâmetros</summary><div class="au-grid">
      <label class="au-l"><span>Modo</span><select id="au-modo"><option value="teste" ${c.modo !== "gravar" ? "selected" : ""}>Teste — só registra</option><option value="gravar" ${c.modo === "gravar" ? "selected" : ""}>Gravar na Stays</option></select><small>em "Gravar", cada rodada grava sozinha o "iria para"</small></label>
      <label class="au-l"><span>Horários</span><input id="au-hor" value="${c.horarios.join(", ")}" style="width:90px"><small>horas cheias, separadas por vírgula</small></label>
@@ -1361,6 +1382,7 @@ function desenharAuto(msg) {
        <td><button data-run="${r.id}">Ver</button></td></tr>`; }).join("")}</table></div>`
      : `<p class="mute">Nenhuma rodada ainda. A primeira agendada é às ${c.horarios[0]}h; ou clique em <b>Rodar teste agora</b>.</p>`}
    <div id="au-det"></div><p class="small" id="au-msg2">${msg || ""}</p>`;
+  carregarUmaNoite();
   el.querySelectorAll("[data-pr]").forEach((inp) => (inp.onchange = () => { AUTOCFG.protegidos[+inp.dataset.pr][inp.dataset.k] = inp.value; $("#pr-msg").innerHTML = `<span class="mute">Há mudanças não salvas.</span>`; }));
   el.querySelectorAll("[data-prdel]").forEach((b) => (b.onclick = () => { AUTOCFG.protegidos.splice(+b.dataset.prdel, 1); desenharAuto(`<span class="mute">Período removido — clique em Salvar períodos.</span>`); }));
   $("#pr-add").onclick = () => { (AUTOCFG.protegidos ||= []).push({ nome: "Novo período", de: hoje(), ate: hoje(), regra: "so_sobe" }); desenharAuto(); };
