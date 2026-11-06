@@ -182,6 +182,18 @@ tr.rsel td{background:var(--orange-soft)}
 .g tr.row.off .nm{opacity:.55}
 .nm input{vertical-align:-2px;margin-right:6px}
 .nm .tag{font-size:.68rem;color:var(--mute);margin-left:4px;font-weight:600}
+.sb-pr{display:flex;gap:8px;align-items:center}.sb-pr label{display:flex;gap:3px;align-items:center}
+.sb-como{margin:8px 0 12px}.sb-como summary{cursor:pointer}.sb-crit{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px}
+.sb-crit>div{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.sb-crit p{margin:4px 0 0;font-size:.82rem}
+.sb-box{overflow:auto;max-height:calc(100vh - 260px);border:1px solid var(--line);border-radius:8px}
+.sb-t{border-collapse:collapse;width:100%}.sb-t th{position:sticky;top:0;background:var(--panel);z-index:1;font-size:.8rem;text-align:left;padding:6px}
+.sb-t td{border-top:1px solid var(--line);padding:5px 6px;vertical-align:top}.sb-t tr.on td{background:#fff7f2}.sb-n{min-width:200px}
+.sb-c{min-width:118px;font-size:.78rem}.sb-c.s10{background:#fdecdf}.sb-c.s15{background:#fbd6bf}.sb-t tr.on td.sb-c.s10,.sb-t tr.on td.sb-c.s15{background:#f9caa9}
+.sb-o b{font-size:.9rem}.sb-o span{display:inline-block;color:var(--mute);margin-left:4px}.sb-in{display:flex;gap:3px;align-items:center;margin-top:3px;color:var(--mute)}.sb-in input{width:52px;padding:2px 4px}
+.sb-p{font-size:.72rem;font-weight:700;padding:2px 7px;border-radius:8px}.sb-p.alta{background:#F26B2E;color:#fff}.sb-p.media{background:#fde9df;color:#a2441a}.sb-p.baixa{background:#eef0f4;color:#5f6676}
+.sb-s{font-weight:700;padding:0 5px;border-radius:6px}.sb-s.s10{background:#fdecdf}.sb-s.s15{background:#fbd6bf}
+.sb-barra .in{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:var(--navy);color:#fff;border-radius:12px;padding:10px 14px;display:flex;gap:10px;align-items:center;box-shadow:0 6px 24px rgba(0,0,0,.2);z-index:20}
+.sb-barra button{margin-left:4px}.sb-pm{display:inline-block;background:var(--panel);border-radius:6px;padding:1px 6px;margin:2px;font-size:.8rem}
 .nv-st{font-size:.75rem;font-weight:600;padding:1px 6px;border-radius:8px}.nv-st.pen{background:#fdecc8;color:#8a5a00}.nv-st.her{background:#e3f0ff;color:#1f4f8a}.nv-st.ok{background:#e4f5e8;color:#2c6b3a}
 .nv-op{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.nv-or{color:var(--mute);font-size:.8rem}.nv-t td{vertical-align:top}
 /* painel de ação */
@@ -345,7 +357,7 @@ try { const f = JSON.parse(localStorage.getItem("cp-dows") || "null"); if (Array
 
 function cabecalho() {
   return `<header class="bar-top"><div class="in"><img src="logo-branco.png" alt="Carpediem Homes"><span class="t">Calendário de Preços</span>
-   <nav class="tabs">${[["cal", "Calendário"], ["auto", "Automação"], ["log", "Histórico"], ["ajuda", "Como funciona"]].map(([k, n]) => `<button data-tab="${k}" class="${S.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
+   <nav class="tabs">${[["cal", "Calendário"], ["auto", "Automação"], ["base", "Sugestões de base"], ["log", "Histórico"], ["ajuda", "Como funciona"]].map(([k, n]) => `<button data-tab="${k}" class="${S.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
    <span class="user"><span>${esc(S.user)}</span><button id="sair">Sair</button></span></div></header>`;
 }
 function ligarCab() {
@@ -356,6 +368,7 @@ function render() {
   if (S.tab === "cal") return telaCal();
   if (S.tab === "auto") return telaAuto();
   if (S.tab === "ajuda") return telaAjuda();
+  if (S.tab === "base") return telaBase();
   return telaLog();
 }
 
@@ -1358,6 +1371,7 @@ function telaAjuda() {
       <div class="aj-steps2"><div style="height:20%"><span>0%</span></div><div style="height:45%"><span>+20%</span></div><div style="height:70%"><span>+40%</span></div><div style="height:85%"><span>+50%</span></div></div>
       <p class="small mute">Sugestão +50%: no máximo 20 pontos por rodada. Diferença menor que 5 pontos não mexe. Ajuste manual vira a nova base e a automação segue em cima dele.</p>
       <h4>🔒 Períodos protegidos</h4><p class="small">Natal/Réveillon, janeiro, Carnaval e Semana Santa: a automação <b>só sobe</b> (nunca baixa, sem freio). Na grade aparece 🔒 na linha da sugestão.</p>
+      <h4>📈 Sugestões de base</h4><p class="small">A aba <i>Sugestões de base</i> lista as unidades que, nos próximos 6 meses, já venderam bem acima da região e do mesmo período do ano passado (mesma antecedência). Sugere +10% ou +15% na <b>base</b> do mês; você marca, ajusta o % e aplica com prévia. A automação segue por cima da nova base.</p>
       <h4>🆕 Anúncios novos</h4><p class="small">Se o preço do anúncio novo foi copiado de outro, ele <b>herda a base e o ajuste</b> desse outro e já entra nas rodadas. Se não der para saber a origem, fica <b>fora da automação</b> até alguém confirmar em <i>Automação → Anúncios novos</i> (usar o preço atual ou copiar de outro anúncio ±%). Na grade, o nome mostra o selo "novo".</p></div>
     </div>
     ${onde("Automação → Rodadas automáticas → Ver (por região e diária a diária)", "Automação → Rodadas automáticas → Parâmetros · botão Pausar")}
@@ -1388,6 +1402,107 @@ function telaAjuda() {
 }
 
 /* ---------- histórico ---------- */
+/* ---------- sugestões de base ---------- */
+const SB = { dados: null, reg: "", prio: new Set(["alta", "media"]), busca: "", marc: new Set(), pct: {} }; // pct[sell][mes]
+const NOME_MES = (m) => new Date(m + "T12:00:00").toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(". de ", "/").replace(".", "");
+const PRIO = { alta: "Alta", media: "Média", baixa: "Baixa" };
+async function telaBase() {
+  $("#app").innerHTML = cabecalho() + `<div class="faixa"><label>Região <select id="sb-reg"><option value="">Todas</option>${S.regions.map((r) => `<option ${SB.reg === r.name ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select></label>
+    <span class="sb-pr">Prioridade ${["alta", "media", "baixa"].map((p) => `<label><input type="checkbox" data-sbp="${p}" ${SB.prio.has(p) ? "checked" : ""}> ${PRIO[p]}</label>`).join("")}</span>
+    <label>Buscar <input id="sb-busca" value="${esc(SB.busca)}" placeholder="código ou nome" style="width:160px"></label><span id="sb-cont" class="small mute"></span></div>
+   <div class="wrap"><details class="sb-como"><summary><b>Como a sugestão é feita</b> — unidades vendendo bem acima da região e do ano passado, nos próximos 6 meses</summary>
+    <div class="sb-crit">
+     <div><b>Ocupação já vendida</b><p>Noites reservadas ÷ noites disponíveis no mês (bloqueio, manutenção e uso do proprietário não contam). Mês corrente: de hoje até o fim do mês.</p></div>
+     <div><b>vs. região</b><p>Mesma conta para todas as unidades da região no mesmo mês.</p></div>
+     <div><b>vs. ano passado</b><p>O que a unidade já tinha vendido para o mesmo mês <b>nesta mesma data</b> do ano passado (mesma antecedência). Sem histórico: "—".</p></div>
+     <div><b>Sugestão</b><p><span class="sb-s s10">+10%</span> ≥5 noites vendidas, ≥1,6× a região e +10 pontos, e acima do ano passado.<br><span class="sb-s s15">+15%</span> ≥7 noites, ≥2× a região e +15 pontos.</p></div>
+     <div><b>Prioridade</b><p><b>Alta</b>: forte em 3+ meses. <b>Média</b>: 2 meses. <b>Baixa</b>: 1 mês (pode ser só um grupo grande).</p></div>
+     <div><b>Ao aplicar</b><p>A <b>base</b> daquelas noites sobe o %; o ajuste da automação continua valendo por cima. Fica no Histórico com Desfazer.</p></div>
+    </div></details>
+    <div id="sb">Calculando… (leva alguns segundos)</div></div>
+   <div class="sb-barra" id="sb-barra"></div>`;
+  ligarCab();
+  $("#sb-reg").onchange = (e) => { SB.reg = e.target.value; desenharBase(); };
+  $("#sb-busca").oninput = (e) => { SB.busca = e.target.value; desenharBase(); };
+  document.querySelectorAll("[data-sbp]").forEach((c) => c.onchange = () => { c.checked ? SB.prio.add(c.dataset.sbp) : SB.prio.delete(c.dataset.sbp); desenharBase(); });
+  if (!SB.dados) {
+    try { SB.dados = await api("sug_base", { meses: 6 }); for (const u of SB.dados.unidades) SB.pct[u.sell_id] = Object.fromEntries(u.meses.map((m) => [m.mes, m.sug])); }
+    catch (e) { $("#sb").innerHTML = `<p class="msg">${esc(e.message)}</p>`; return; }
+  }
+  desenharBase();
+}
+function sbVisiveis() {
+  const b = SB.busca.trim().toLowerCase();
+  return (SB.dados?.unidades || []).filter((u) => SB.prio.has(u.prioridade) && (!SB.reg || u.region_name === SB.reg) && (!b || (u.code || "").toLowerCase().includes(b) || u.nome.toLowerCase().includes(b)));
+}
+function desenharBase() {
+  const el = $("#sb"); if (!el || !SB.dados) return;
+  const us = sbVisiveis(); const meses = SB.dados.unidades[0]?.meses.map((m) => m.mes) || [];
+  $("#sb-cont").textContent = `${us.length} unidade(s) na lista`;
+  if (!us.length) { el.innerHTML = `<p class="mute">Nenhuma unidade com esse filtro.</p>`; barraBase(); return; }
+  const pc = (v) => v == null ? "—" : `${Math.round(v)}%`;
+  let h = `<div class="sb-box"><table class="t sb-t"><thead><tr><th><input type="checkbox" id="sb-all" title="Marcar todas da lista"></th><th>Unidade</th><th>Prior.</th><th title="Ocupação já vendida nos 6 meses">6 meses</th>${meses.map((m) => `<th>${NOME_MES(m)}</th>`).join("")}</tr></thead><tbody>`;
+  for (const u of us) {
+    h += `<tr class="${SB.marc.has(u.sell_id) ? "on" : ""}"><td><input type="checkbox" data-sbm="${u.sell_id}" ${SB.marc.has(u.sell_id) ? "checked" : ""}></td>
+      <td class="sb-n"><b>${esc(u.code || "")}</b> ${esc(nomeCurto(u.nome))}<div class="small mute">${esc(u.region_name)}</div></td>
+      <td><span class="sb-p ${u.prioridade}">${PRIO[u.prioridade]}</span></td><td><b>${pc(u.occ6)}</b></td>`;
+    for (const m of u.meses) {
+      const v = SB.pct[u.sell_id]?.[m.mes] ?? 0;
+      h += `<td class="sb-c ${m.sug ? "s" + m.sug : ""}" title="${esc(`${m.vendidas} de ${m.livres} noites vendidas · região ${pc(m.reg)} · ano passado ${pc(m.ly)} · automação hoje ${m.pct > 0 ? "+" : ""}${Math.round(m.pct)}%${m.base ? ` · base média R$ ${m.base}` : ""}`)}">
+        <div class="sb-o"><b>${pc(m.occ)}</b> <span>reg ${pc(m.reg)}</span><span>a.p. ${pc(m.ly)}</span></div>
+        <label class="sb-in">base <input type="number" data-sbu="${u.sell_id}" data-sbmes="${m.mes}" value="${v || ""}" placeholder="0" step="5">%</label></td>`;
+    }
+    h += `</tr>`;
+  }
+  el.innerHTML = h + `</tbody></table></div>`;
+  el.querySelectorAll("[data-sbm]").forEach((c) => c.onchange = () => { c.checked ? SB.marc.add(c.dataset.sbm) : SB.marc.delete(c.dataset.sbm); c.closest("tr").classList.toggle("on", c.checked); barraBase(); });
+  $("#sb-all").onchange = (e) => { for (const u of us) e.target.checked ? SB.marc.add(u.sell_id) : SB.marc.delete(u.sell_id); desenharBase(); };
+  el.querySelectorAll("[data-sbu]").forEach((i) => i.onchange = () => { (SB.pct[i.dataset.sbu] ??= {})[i.dataset.sbmes] = Number(i.value || 0); barraBase(); });
+  barraBase();
+}
+function sbPlano() { // [{u, meses:[{mes,pct,dates,base}]}]
+  const hj = hoje(); const out = [];
+  for (const id of SB.marc) {
+    const u = SB.dados.unidades.find((x) => x.sell_id === id); if (!u) continue;
+    const ms = [];
+    for (const m of u.meses) {
+      const p = Number(SB.pct[id]?.[m.mes] || 0); if (!p) continue;
+      const dates = []; const fim = addD(m.mes.slice(0, 8) + "28", 4).slice(0, 8) + "01";
+      for (let d = m.mes < hj ? hj : m.mes; d < fim; d = addD(d, 1)) dates.push(d);
+      ms.push({ mes: m.mes, pct: p, dates, base: m.base });
+    }
+    if (ms.length) out.push({ u, meses: ms });
+  }
+  return out;
+}
+function barraBase() {
+  const b = $("#sb-barra"); if (!b) return;
+  const P = sbPlano(); const n = P.reduce((a, x) => a + x.meses.reduce((c, m) => c + m.dates.length, 0), 0);
+  if (!SB.marc.size) { b.innerHTML = ""; return; }
+  b.innerHTML = `<div class="in"><b>${SB.marc.size}</b> unidade(s) marcada(s) · ${P.length} com % na base · ${n.toLocaleString("pt-BR")} noites <button id="sb-limpa">Limpar</button><button class="prim" id="sb-prev" ${n ? "" : "disabled"}>Prévia e aplicar</button></div>`;
+  $("#sb-limpa").onclick = () => { SB.marc.clear(); desenharBase(); };
+  $("#sb-prev").onclick = () => previaBase(P, n);
+}
+function previaBase(P, n) {
+  const linhas = P.map(({ u, meses }) => `<tr><td><b>${esc(u.code || "")}</b> ${esc(nomeCurto(u.nome))}</td><td>${meses.map((m) => `<span class="sb-pm">${NOME_MES(m.mes)} <b>${m.pct > 0 ? "+" : ""}${m.pct}%</b>${m.base ? ` <small>R$ ${m.base} → ${Math.round(m.base * (1 + m.pct / 100))}</small>` : ""}</span>`).join(" ")}</td></tr>`).join("");
+  abrirModal(`<h3>Prévia: mudar a base de ${P.length} unidade(s)</h3>
+    <p class="small">A <b>diária base</b> das noites abaixo muda o %. O preço na Stays muda na mesma proporção e a automação continua ajustando por cima da nova base. Valores em "R$" são a base média do mês (menor estadia).</p>
+    <div style="max-height:50vh;overflow:auto"><table class="t">${linhas}</table></div>
+    <p><b>${n.toLocaleString("pt-BR")}</b> noites · fica no Histórico como "sugestão de base", com Desfazer.</p>`, `Confirmar e gravar na Stays`, async () => {
+    $("#m-ok").disabled = true; let ok = 0, erro = 0, feito = 0; const erros = [];
+    const fila = P.slice();
+    const um = async () => { while (fila.length) { const { u, meses } = fila.shift();
+      const mapa = {}; for (const m of meses) for (const d of m.dates) mapa[d] = m.pct;
+      try { const r = await api("apply", { op: "base_pct", sell_ids: [u.sell_id], dates: Object.keys(mapa), base_pct_por_sell_data: { [u.sell_id]: mapa }, origem: "sugestão de base" }); ok += r.ok; erro += r.erro; erros.push(...(r.erros || [])); }
+      catch (e) { erro++; erros.push(`${u.code || u.nome}: ${e.message}`); }
+      feito++; $("#m-msg").textContent = `Gravando… ${feito}/${P.length} unidades`; } };
+    await Promise.all([um(), um(), um()]);
+    fecharModal(); SB.marc.clear(); SB.dados = null; S.grid = null;
+    alert(erro ? `Gravado com ${erro} erro(s):\n${erros.slice(0, 8).join("\n")}` : `Base atualizada: ${ok.toLocaleString("pt-BR")} diárias gravadas na Stays. Está no Histórico, com Desfazer.`);
+    telaBase();
+  });
+}
+
 async function telaLog() {
   $("#app").innerHTML = cabecalho() + `<div class="faixa"><label>Região <select id="lg-reg"><option value="">Todas</option>${S.regions.map((r) => `<option>${esc(r.name)}</option>`).join("")}</select></label>
    <label>Usuário <input id="lg-user" placeholder="e-mail"></label><button id="lg-go">Filtrar</button></div><div class="wrap" id="lg">Carregando…</div>`;
@@ -1417,7 +1532,7 @@ function previaDesfazer(batch) {
       catch (e) { $("#m-msg").innerHTML = `<span class="msg">${esc(e.message)}</span>`; ok.disabled = false; ok.textContent = "Tentar de novo"; }
     });
 }
-const NOMES_OP = { pct: "Ajuste %", one_night_on: "Liberou 1 noite", one_night_off: "Tirou 1 noite", reset: "Voltou à base", rebase: "Redefiniu base", desfazer: "Desfez", regras: "Alterou regras", base_stays: "Base atualizada (mudança feita direto na Stays)", reacao: "Alterou a reação às vendas", automacao_cfg: "Automação automática", base_oficial: "Base oficial definida", regiao_cfg: "Região: grupo/tabela própria", grupo_cfg: "Grupo de regiões" };
+const NOMES_OP = { pct: "Ajuste %", one_night_on: "Liberou 1 noite", one_night_off: "Tirou 1 noite", reset: "Voltou à base", rebase: "Redefiniu base", desfazer: "Desfez", regras: "Alterou regras", base_stays: "Base atualizada (mudança feita direto na Stays)", reacao: "Alterou a reação às vendas", automacao_cfg: "Automação automática", base_oficial: "Base oficial definida", regiao_cfg: "Região: grupo/tabela própria", grupo_cfg: "Grupo de regiões", base_pct: "Mudou a base (%)", base_novo: "Anúncio novo" };
 async function carregarLog() {
   try {
     const { rows } = await api("log", { region: $("#lg-reg").value || undefined, user: $("#lg-user").value.trim() || undefined, limit: 1000 });
