@@ -182,6 +182,26 @@ tr.rsel td{background:var(--orange-soft)}
 .g tr.row.off .nm{opacity:.55}
 .nm input{vertical-align:-2px;margin-right:6px}
 .nm .tag{font-size:.68rem;color:var(--mute);margin-left:4px;font-weight:600}
+.ia-btn{position:fixed;right:18px;bottom:18px;z-index:40;background:var(--orange);color:#fff;border:0;border-radius:22px;padding:10px 16px;font-weight:700;box-shadow:0 6px 20px rgba(242,107,46,.35);cursor:pointer}
+.ia-btn.on{display:none}
+.ia{position:fixed;right:0;top:0;bottom:0;width:min(440px,100vw);z-index:41;background:#fff;border-left:1px solid var(--line);box-shadow:-8px 0 30px rgba(22,41,79,.12);display:flex;flex-direction:column}
+.ia[hidden]{display:none}
+.ia-h{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel)}.ia-h b{flex:1}
+.ia-uso{font-size:.75rem;color:var(--mute)}.ia-uso .alto{color:#b3261e;font-weight:700}.ia-h button{font-size:.78rem}
+.ia-msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.ia-m{max-width:92%;padding:8px 11px;border-radius:12px;font-size:.88rem;line-height:1.4}.ia-m p{margin:0 0 6px}.ia-m p:last-child{margin:0}.ia-m ul{margin:4px 0 6px 18px;padding:0}
+.ia-m.eu{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:4px}
+.ia-m.ela{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:4px}
+.ia-m.erro{align-self:stretch;background:#fdecea;color:#8a1c12;font-size:.82rem}
+.ia-tw{overflow-x:auto;margin:4px 0}.ia-tab{border-collapse:collapse;font-size:.78rem}.ia-tab th,.ia-tab td{border:1px solid var(--line);padding:3px 6px;text-align:left;white-space:nowrap}.ia-tab th{background:#fff}
+.ia-card{align-self:stretch;border:2px solid var(--orange);border-radius:12px;padding:10px;background:#fff7f2}.ia-card.executada{border-color:#2c6b3a;background:#e4f5e8}.ia-card.descartada{border-color:var(--line);background:var(--panel);opacity:.75}.ia-card.erro{border-color:#b3261e}
+.ia-card-t{font-weight:700;display:flex;gap:6px;align-items:center;flex-wrap:wrap}.ia-st{font-size:.72rem;font-weight:700;padding:1px 7px;border-radius:8px;background:#fff;border:1px solid var(--line)}
+.ia-card-b{display:flex;gap:8px;margin-top:8px}
+.ia-vazio p{color:var(--mute);font-size:.85rem}.ia-ex{display:block;width:100%;text-align:left;margin:5px 0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:.84rem;cursor:pointer}.ia-ex:hover{border-color:var(--orange)}
+.ia-f{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}.ia-f textarea{flex:1;resize:none;font:inherit;font-size:.88rem;padding:7px 9px;border:1px solid var(--line);border-radius:10px}
+.ia-rod{margin:0;padding:0 12px 10px;font-size:.72rem;color:var(--mute)}
+.pensando{color:var(--mute);font-size:.82rem}.pensando span{display:inline-block;width:6px;height:6px;margin-right:3px;border-radius:50%;background:var(--orange);animation:iap 1s infinite}.pensando span:nth-child(2){animation-delay:.2s}.pensando span:nth-child(3){animation-delay:.4s}
+@keyframes iap{0%,100%{opacity:.25}50%{opacity:1}}
 .sb-pr{display:flex;gap:8px;align-items:center}.sb-pr label{display:flex;gap:3px;align-items:center}
 .sb-como{margin:8px 0 12px}.sb-como summary{cursor:pointer}.sb-crit{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px}
 .sb-crit>div{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.sb-crit p{margin:4px 0 0;font-size:.82rem}
@@ -292,6 +312,7 @@ const tierTxt = (p) => (p || []).map((t) => `${t[0]}+ noites: ${brl(t[1])}`).joi
 
 /* ---------- login ---------- */
 function telaLogin(aviso) {
+  $("#ia-btn")?.remove(); $("#ia")?.remove(); if (typeof IA !== "undefined") Object.assign(IA, { aberto: false, carregado: false, conv: null, itens: [] });
   $("#app").innerHTML = `<div class="login"><form id="f-login"><img src="logo.png" alt="Carpediem Homes">
     <h2>Calendário de Preços</h2><span class="mute">Entre com seu e-mail e senha Carpediem.</span>
     <label>E-mail<input id="l-email" type="email" autocomplete="username" required></label>
@@ -365,6 +386,7 @@ function ligarCab() {
   document.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { S.tab = b.dataset.tab; render(); }));
 }
 function render() {
+  garantirChat();
   if (S.tab === "cal") return telaCal();
   if (S.tab === "auto") return telaAuto();
   if (S.tab === "ajuda") return telaAjuda();
@@ -1371,6 +1393,7 @@ function telaAjuda() {
       <div class="aj-steps2"><div style="height:20%"><span>0%</span></div><div style="height:45%"><span>+20%</span></div><div style="height:70%"><span>+40%</span></div><div style="height:85%"><span>+50%</span></div></div>
       <p class="small mute">Sugestão +50%: no máximo 20 pontos por rodada. Diferença menor que 5 pontos não mexe. Ajuste manual vira a nova base e a automação segue em cima dele.</p>
       <h4>🔒 Períodos protegidos</h4><p class="small">Natal/Réveillon, janeiro, Carnaval e Semana Santa: a automação <b>só sobe</b> (nunca baixa, sem freio). Na grade aparece 🔒 na linha da sugestão.</p>
+      <h4>✦ Assistente (IA)</h4><p class="small">Botão laranja no canto da tela. Pergunte sobre ocupação, bases e sugestões, ou peça "suba 10% a base do X em dezembro" / "copie a base do X para o Y com −10%". A IA só <b>propõe</b>: aparece um cartão e nada vai para a Stays sem você clicar em <b>Confirmar e gravar</b>. Gasto do mês aparece no topo do chat (limite US$ 40).</p>
       <h4>📈 Sugestões de base</h4><p class="small">A aba <i>Sugestões de base</i> lista as unidades que, nos próximos 6 meses, já venderam bem acima da região e do mesmo período do ano passado (mesma antecedência). Sugere +10% ou +15% na <b>base</b> do mês; você marca, ajusta o % e aplica com prévia. A automação segue por cima da nova base.</p>
       <h4>🆕 Anúncios novos</h4><p class="small">Se o preço do anúncio novo foi copiado de outro, ele <b>herda a base e o ajuste</b> desse outro e já entra nas rodadas. Se não der para saber a origem, fica <b>fora da automação</b> até alguém confirmar em <i>Automação → Anúncios novos</i> (usar o preço atual ou copiar de outro anúncio ±%). Na grade, o nome mostra o selo "novo".</p></div>
     </div>
@@ -1402,6 +1425,105 @@ function telaAjuda() {
 }
 
 /* ---------- histórico ---------- */
+/* ---------- assistente (IA) ---------- */
+const IA = { aberto: false, carregado: false, conv: null, itens: [], uso: 0, limite: 40, ativo: true, enviando: false };
+const fmtUSD = (v) => "US$ " + Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dBR = (d) => d ? d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4) : "";
+function mdLite(t) {
+  const linhas = esc(t).split("\n"); let h = "", tab = null, lista = false;
+  const inl = (x) => x.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*]+)\*/g, "$1<i>$2</i>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  const fechaLista = () => { if (lista) { h += "</ul>"; lista = false; } };
+  const fechaTab = () => { if (tab) { h += `<div class="ia-tw"><table class="ia-tab">${tab.map((r, i) => `<tr>${r.map((c) => i ? `<td>${inl(c)}</td>` : `<th>${inl(c)}</th>`).join("")}</tr>`).join("")}</table></div>`; tab = null; } };
+  for (const l of linhas) {
+    const tl = l.trim();
+    if (/^\|.*\|$/.test(tl)) { fechaLista(); if (/^\|[\s:|-]+\|$/.test(tl)) continue; (tab ??= []).push(tl.slice(1, -1).split("|").map((c) => c.trim())); continue; }
+    fechaTab();
+    if (/^[-•] /.test(tl)) { if (!lista) { h += "<ul>"; lista = true; } h += `<li>${inl(tl.slice(2))}</li>`; continue; }
+    fechaLista();
+    if (/^#{1,4} /.test(tl)) { h += `<p><b>${inl(tl.replace(/^#+ /, ""))}</b></p>`; continue; }
+    if (tl) h += `<p>${inl(tl)}</p>`;
+  }
+  fechaTab(); fechaLista(); return h;
+}
+function garantirChat() {
+  if (!S.user || $("#ia-btn")) return;
+  document.body.insertAdjacentHTML("beforeend", `<button id="ia-btn" class="ia-btn" title="Assistente de preços">✦ Assistente</button>
+   <aside id="ia" class="ia" hidden><header class="ia-h"><b>✦ Assistente de preços</b><span id="ia-uso" class="ia-uso"></span>
+     <button id="ia-nova" title="Começar uma conversa nova">Nova conversa</button><button id="ia-x" class="x" title="Fechar">×</button></header>
+    <div id="ia-msgs" class="ia-msgs"></div>
+    <form id="ia-f" class="ia-f"><textarea id="ia-t" rows="2" placeholder="Pergunte ou peça uma mudança de base… (Enter envia)"></textarea><button class="prim" id="ia-env">Enviar</button></form>
+    <p class="ia-rod">A IA só <b>propõe</b>: nada vai para a Stays sem você clicar em Confirmar. Tudo fica no Histórico, com Desfazer.</p></aside>`);
+  $("#ia-btn").onclick = () => abrirChat(!IA.aberto);
+  $("#ia-x").onclick = () => abrirChat(false);
+  $("#ia-nova").onclick = () => { IA.conv = null; IA.itens = []; desenharChat(); $("#ia-t").focus(); };
+  $("#ia-f").onsubmit = (e) => { e.preventDefault(); enviarIA(); };
+  $("#ia-t").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarIA(); } };
+}
+async function abrirChat(v) {
+  IA.aberto = v; $("#ia").hidden = !v; $("#ia-btn").classList.toggle("on", v);
+  if (v && !IA.carregado) {
+    $("#ia-msgs").innerHTML = `<p class="mute small">Carregando…</p>`;
+    try { const r = await api("ia_status"); Object.assign(IA, { carregado: true, conv: r.conversa_id, itens: r.itens || [], uso: r.uso_mes_usd, limite: r.limite_usd, ativo: r.ativo }); }
+    catch (e) { $("#ia-msgs").innerHTML = `<p class="msg">${esc(e.message)}</p>`; return; }
+  }
+  if (v) { desenharChat(); $("#ia-t").focus(); }
+}
+const EXEMPLOS = ["Quais unidades valem subir a base nos próximos meses?", "Como está a ocupação do TH02I nos próximos 3 meses comparada à região?", "Suba 10% a base do [código] em dezembro", "Copie a base do [código origem] para o [código destino] com −10%"];
+function desenharChat() {
+  const el = $("#ia-msgs"); if (!el) return;
+  const pcU = IA.limite ? IA.uso / IA.limite : 0;
+  $("#ia-uso").innerHTML = `<span class="${pcU >= 0.8 ? "alto" : ""}" title="Gasto da IA neste mês / limite">${fmtUSD(IA.uso)} de ${fmtUSD(IA.limite)}</span>`;
+  let h = "";
+  if (!IA.ativo) h += `<p class="msg">A IA ainda não está configurada no servidor.</p>`;
+  if (!IA.itens.length) h += `<div class="ia-vazio"><p>Pergunte sobre ocupação, bases e sugestões, ou peça uma mudança de base. Exemplos:</p>${EXEMPLOS.map((x) => `<button class="ia-ex">${esc(x)}</button>`).join("")}</div>`;
+  for (const it of IA.itens) {
+    if (it.role === "user") h += `<div class="ia-m eu">${esc(it.text).replace(/\n/g, "<br>")}</div>`;
+    else if (it.role === "assistant") h += `<div class="ia-m ela">${mdLite(it.text)}</div>`;
+    else if (it.role === "proposta") h += cartaoProposta(it.proposta);
+    else if (it.role === "erro") h += `<div class="ia-m erro">${esc(it.text)}</div>`;
+  }
+  if (IA.enviando) h += `<div class="ia-m ela pensando"><span></span><span></span><span></span> consultando os dados…</div>`;
+  el.innerHTML = h; el.scrollTop = el.scrollHeight;
+  el.querySelectorAll(".ia-ex").forEach((b) => b.onclick = () => { const t = b.textContent; $("#ia-t").value = t; if (!t.includes("[")) enviarIA(); else $("#ia-t").focus(); });
+  el.querySelectorAll("[data-pok]").forEach((b) => b.onclick = () => confirmarProposta(b.dataset.pok));
+  el.querySelectorAll("[data-pno]").forEach((b) => b.onclick = () => descartarProposta(b.dataset.pno));
+  $("#ia-env").disabled = IA.enviando || !IA.ativo;
+}
+function cartaoProposta(p) {
+  const r = p.resumo || {}; const ST = { pendente: "", executando: "Gravando…", executada: "✓ Gravado na Stays", descartada: "Descartada", erro: "Erro ao gravar" };
+  const linhas = (r.linhas || []).map((l) => `<tr><td><b>${esc(l.codigo || "")}</b>${l.origem ? `<div class="small mute">base de ${esc(l.origem)}</div>` : ""}</td><td>${dBR(l.de)} a ${dBR(l.ate)}</td><td><b>${l.pct > 0 ? "+" : ""}${l.pct}%</b></td><td>${l.noites}</td><td>${l.base_media_antes != null ? `R$ ${l.base_media_antes} → ` : ""}<b>R$ ${l.base_media_depois}</b></td></tr>`).join("");
+  const res = p.resultado; const resTxt = p.status === "executada" ? `${(res?.ok ?? 0).toLocaleString("pt-BR")} diárias gravadas${res?.erro ? ` · ${res.erro} com erro` : ""}. Para voltar, use Desfazer no Histórico.` : p.status === "erro" ? esc(res?.falha || (res?.erros || []).join(" | ") || "") : "";
+  return `<div class="ia-card ${p.status}"><div class="ia-card-t">📝 ${esc(r.titulo || "Proposta")} ${ST[p.status] ? `<span class="ia-st">${ST[p.status]}</span>` : ""}</div>
+    ${r.motivo ? `<p class="small">${esc(r.motivo)}</p>` : ""}
+    <div class="ia-tw"><table class="ia-tab"><tr><th>Anúncio</th><th>Período</th><th>Base</th><th>Noites</th><th>Base média (2 noites)</th></tr>${linhas}</table></div>
+    ${p.status === "pendente" ? `<div class="ia-card-b"><button class="prim" data-pok="${p.id}">Confirmar e gravar ${r.noites} noites</button><button data-pno="${p.id}">Descartar</button></div>` : resTxt ? `<p class="small">${resTxt}</p>` : ""}</div>`;
+}
+async function enviarIA() {
+  const t = $("#ia-t").value.trim(); if (!t || IA.enviando) return;
+  $("#ia-t").value = ""; IA.enviando = true; IA.itens.push({ role: "user", text: t }); desenharChat();
+  try {
+    const r = await api("ia_chat", { conversa_id: IA.conv, texto: t });
+    IA.conv = r.conversa_id; IA.uso = r.uso_mes_usd; IA.limite = r.limite_usd;
+    IA.itens.pop(); IA.itens.push(...(r.itens || []));
+    if (r.erro) IA.itens.push({ role: "erro", text: r.erro });
+  } catch (e) { IA.itens.push({ role: "erro", text: e.message }); }
+  IA.enviando = false; desenharChat(); $("#ia-t").focus();
+}
+function acharProposta(id) { return IA.itens.find((i) => i.role === "proposta" && i.proposta.id === id)?.proposta; }
+async function confirmarProposta(id) {
+  const p = acharProposta(id); if (!p) return;
+  if (!confirm(`${p.resumo.titulo}\n\n${p.resumo.noites} noites terão a base alterada e o preço regravado na Stays. Confirmar?`)) return;
+  p.status = "executando"; desenharChat();
+  try { const r = await api("ia_confirmar", { proposta_id: id }); p.status = r.status; p.resultado = r; S.grid = null; SB.dados = null; }
+  catch (e) { p.status = "erro"; p.resultado = { falha: e.message }; }
+  desenharChat();
+}
+async function descartarProposta(id) {
+  const p = acharProposta(id); if (!p) return;
+  try { await api("ia_descartar", { proposta_id: id }); p.status = "descartada"; } catch (e) { alert(e.message); }
+  desenharChat();
+}
+
 /* ---------- sugestões de base ---------- */
 const SB = { dados: null, reg: "", prio: new Set(["alta", "media"]), busca: "", marc: new Set(), pct: {} }; // pct[sell][mes]
 const NOME_MES = (m) => new Date(m + "T12:00:00").toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(". de ", "/").replace(".", "");
