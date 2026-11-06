@@ -187,7 +187,9 @@ tr.rsel td{background:var(--orange-soft)}
 .ia{position:fixed;right:0;top:0;bottom:0;width:min(440px,100vw);z-index:41;background:#fff;border-left:1px solid var(--line);box-shadow:-8px 0 30px rgba(22,41,79,.12);display:flex;flex-direction:column}
 .ia[hidden]{display:none}
 .ia-h{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel)}.ia-h b{flex:1}
-.ia-uso{font-size:.75rem;color:var(--mute)}.ia-uso .alto{color:#b3261e;font-weight:700}.ia-h button{font-size:.78rem}
+.ia-uso{font-size:.75rem;color:var(--mute);display:flex;flex-direction:column;align-items:flex-end;gap:2px}.ia-uso small{font-size:.66rem}
+.ia-teto{display:block;width:70px;height:6px;border-radius:4px;background:#e6e8ee;overflow:hidden}.ia-teto span{display:block;height:100%;border-radius:4px}
+.ia-teto.verde span{background:#7cc196}.ia-teto.amarelo span{background:#e8b24a}.ia-teto.vermelho span{background:#d9534f}.ia-uso .alto{color:#b3261e;font-weight:700}.ia-h button{font-size:.78rem}
 .ia-msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
 .ia-m{max-width:92%;padding:8px 11px;border-radius:12px;font-size:.88rem;line-height:1.4}.ia-m p{margin:0 0 6px}.ia-m p:last-child{margin:0}.ia-m ul{margin:4px 0 6px 18px;padding:0}
 .ia-m.eu{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:4px}
@@ -1488,7 +1490,8 @@ function desenharChat() {
   const el = $("#ia-msgs"); if (!el) return;
   const pcU = IA.limite ? IA.uso / IA.limite : 0;
   // gasto só aparece perto do limite do mês (pedido de 06/11: o contador ao vivo gerava pressão)
-  $("#ia-uso").innerHTML = pcU >= 0.75 ? `<span class="alto" title="${fmtUSD(IA.uso)} de ${fmtUSD(IA.limite)}">⚠️ ${Math.round(pcU * 100)}% do limite do mês</span>` : "";
+  const nivel = pcU >= 0.9 ? "vermelho" : pcU >= 0.75 ? "amarelo" : "verde";
+  $("#ia-uso").innerHTML = `<span class="ia-teto ${nivel}" title="Uso da IA no mês: ${Math.round(pcU * 100)}% do limite"><span style="width:${Math.max(3, Math.min(100, pcU * 100))}%"></span></span>${pcU >= 0.75 ? `<small class="alto">${pcU >= 1 ? "limite atingido" : "perto do limite"}</small>` : `<small>limite do mês</small>`}`;
   let h = "";
   if (!IA.ativo) h += `<p class="msg">A IA ainda não está configurada no servidor.</p>`;
   if (!IA.itens.length) h += `<div class="ia-vazio"><p>Pergunte sobre ocupação, bases e sugestões, ou peça uma mudança de base. Exemplos:</p>${EXEMPLOS.map((x) => `<button class="ia-ex">${esc(x)}</button>`).join("")}</div>`;
