@@ -204,7 +204,7 @@ tr.rsel td{background:var(--orange-soft)}
 .ia-custo{align-self:flex-start;font-size:.68rem;color:var(--mute);margin:-4px 0 2px 4px}
 .ia-card{align-self:stretch;border:2px solid var(--orange);border-radius:12px;padding:10px;background:#fff7f2}.ia-card.executada{border-color:#2c6b3a;background:#e4f5e8}.ia-card.descartada{border-color:var(--line);background:var(--panel);opacity:.75}.ia-card.erro{border-color:#b3261e}
 .ia-card-t{font-weight:700;display:flex;gap:6px;align-items:center;flex-wrap:wrap}.ia-st{font-size:.72rem;font-weight:700;padding:1px 7px;border-radius:8px;background:#fff;border:1px solid var(--line)}
-.ia-card-b{display:flex;gap:8px;margin-top:8px}
+.ia-card-b{display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap}
 .ia-vazio p{color:var(--mute);font-size:.85rem}.ia-ex{display:block;width:100%;text-align:left;margin:5px 0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:.84rem;cursor:pointer}.ia-ex:hover{border-color:var(--orange)}
 .ia-f{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}.ia-f textarea{flex:1;resize:none;font:inherit;font-size:.88rem;padding:7px 9px;border:1px solid var(--line);border-radius:10px}
 .ia-rod{margin:0;padding:0 12px 10px;font-size:.72rem;color:var(--mute)}
@@ -1469,7 +1469,7 @@ function garantirChat() {
     <div class="ia-esc"><span>Analisar:</span><button type="button" data-esc="tela">📍 O que está na tela</button><button type="button" data-esc="geral">🌎 Geral (todas as regiões)</button></div>
     <div id="ia-msgs" class="ia-msgs"></div>
     <form id="ia-f" class="ia-f"><textarea id="ia-t" rows="2" placeholder="Pergunte ou peça uma mudança de base… (Enter envia)"></textarea><button class="prim" id="ia-env">Enviar</button></form>
-    <p class="ia-rod">A IA só <b>propõe</b>: nada vai para a Stays sem você clicar em Confirmar. Tudo fica no Histórico, com Desfazer.</p></aside>`);
+    <p class="ia-rod">A IA só <b>propõe</b>: cada ajuste vem num cartão para você aprovar ou recusar. Aprovado, grava na ferramenta e na Stays e fica no Histórico, com Desfazer.</p></aside>`);
   $("#ia-btn").onclick = () => abrirChat(!IA.aberto);
   $("#ia-x").onclick = () => abrirChat(false);
   $("#ia-nova").onclick = () => { IA.conv = null; IA.itens = []; desenharChat(); $("#ia-t").focus(); };
@@ -1513,13 +1513,13 @@ function desenharChat() {
   const dica = $("#ia-t"); if (dica) dica.placeholder = IA.escopo === "geral" ? "Pergunta geral, todas as regiões… (Enter envia)" : "Pergunte sobre o que está na tela… (Enter envia)";
 }
 function cartaoProposta(p) {
-  const r = p.resumo || {}; const ST = { pendente: "", executando: "Gravando…", executada: "✓ Gravado na Stays", descartada: "Descartada", erro: "Erro ao gravar" };
+  const r = p.resumo || {}; const ST = { pendente: "", executando: "Gravando na Stays…", executada: "✓ Aprovado e gravado na Stays", descartada: "✕ Recusado", erro: "Erro ao gravar" };
   const linhas = (r.linhas || []).map((l) => `<tr><td><b>${esc(l.codigo || "")}</b>${l.nome ? `<div class="small mute">${esc(nomeCurto(l.nome))}</div>` : ""}${l.origem ? `<div class="small mute">base de ${esc(l.origem)}</div>` : ""}</td><td>${dBR(l.de)} a ${dBR(l.ate)}</td><td><b>${l.pct > 0 ? "+" : ""}${l.pct}%</b></td><td>${l.noites}</td><td>${l.base_media_antes != null ? `R$ ${l.base_media_antes} → ` : ""}<b>R$ ${l.base_media_depois}</b></td></tr>`).join("");
   const res = p.resultado; const resTxt = p.status === "executada" ? `${(res?.ok ?? 0).toLocaleString("pt-BR")} diárias gravadas${res?.erro ? ` · ${res.erro} com erro` : ""}. Para voltar, use Desfazer no Histórico.` : p.status === "erro" ? esc(res?.falha || (res?.erros || []).join(" | ") || "") : "";
   return `<div class="ia-card ${p.status}"><div class="ia-card-t">📝 ${esc(r.titulo || "Proposta")} ${ST[p.status] ? `<span class="ia-st">${ST[p.status]}</span>` : ""}</div>
     ${r.motivo ? `<p class="small">${esc(r.motivo)}</p>` : ""}
     <div class="ia-tw"><table class="ia-tab"><tr><th>Anúncio</th><th>Período</th><th>Base</th><th>Noites</th><th>Base média (2 noites)</th></tr>${linhas}</table></div>
-    ${p.status === "pendente" ? `<div class="ia-card-b"><button class="prim" data-pok="${p.id}">Confirmar e gravar ${r.noites} noites</button><button data-pno="${p.id}">Descartar</button></div>` : resTxt ? `<p class="small">${resTxt}</p>` : ""}</div>`;
+    ${p.status === "pendente" ? `<div class="ia-card-b"><button class="prim" data-pok="${p.id}">✓ Aprovar e gravar na Stays</button><button data-pno="${p.id}">✕ Recusar</button><span class="small mute">${r.noites} noites</span></div>` : resTxt ? `<p class="small">${resTxt}</p>` : ""}</div>`;
 }
 function contextoTela() { // o que a pessoa está vendo, para "aqui", "nesse período", "nossas unidades"
   const ABA = { cal: "Calendário", auto: "Automação", base: "Sugestões de base", log: "Histórico", ajuda: "Como funciona" };
@@ -1551,7 +1551,7 @@ async function enviarIA() {
 function acharProposta(id) { return IA.itens.find((i) => i.role === "proposta" && i.proposta.id === id)?.proposta; }
 async function confirmarProposta(id) {
   const p = acharProposta(id); if (!p) return;
-  if (!confirm(`${p.resumo.titulo}\n\n${p.resumo.noites} noites terão a base alterada e o preço regravado na Stays. Confirmar?`)) return;
+  if (!confirm(`${p.resumo.titulo}\n\n${p.resumo.noites} noites terão a base alterada na ferramenta e o preço gravado na Stays agora. Aprovar?`)) return;
   p.status = "executando"; desenharChat();
   try { const r = await api("ia_confirmar", { proposta_id: id }); p.status = r.status; p.resultado = r; S.grid = null; SB.dados = null; }
   catch (e) { p.status = "erro"; p.resultado = { falha: e.message }; }
