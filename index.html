@@ -469,7 +469,7 @@ function desenharGrade() {
   h += `</tr><tr class="sug"><th class="nm">Sugestão da automação</th>`;
   for (const d of D) { const s = S.sug?.[d]; const mud = s && s.pct != null && s.pct_tabela != null && s.pct !== s.pct_tabela;
     h += `<td class="o small" title="${esc(tipSug(s))}">${s && s.pct != null ? `<span class="b ${s.pct >= 0 ? "up" : "dn"}">${s.pct > 0 ? "+" : ""}${s.pct}%</span>${mud ? `<span class="rea-m">${s.pct < s.pct_tabela ? "▼" : "▲"}</span>` : ""}` : "<span class='mute'>·</span>"}${s?.protegido ? `<span class="prot" title="Período protegido: ${esc(s.protegido.nome)}">🔒</span>` : ""}</td>`; }
-  h += `</tr><tr class="rit1 fixa"><th class="nm">Dias sem reserva <span class="tag">e × o intervalo normal</span></th>`;
+  h += `</tr><tr class="rit1 fixa"><th class="nm">Dias sem reserva <span class="tag">check-in no dia · × o normal</span></th>`;
   for (const d of D) { const s = S.sug?.[d]; h += `<td class="o small" style="background:${corSemVenda(s)}" title="${esc(tipRecencia(s))}">${s?.sem_venda ?? "—"}${s?.vezes != null ? `<div class="rit-x">${fmtX(s.vezes)}× normal</div>` : ""}</td>`; }
   h += `</tr><tr class="rit2 fixa"><th class="nm">Vendas nos últimos 7 dias <span class="tag">vs. normal</span></th>`;
   for (const d of D) { const s = S.sug?.[d]; h += `<td class="o small" style="background:${corRitmo(s?.ritmo)}" title="${esc(tipRitmo(s))}">${s ? `${s.res_7d}${s.ritmo != null ? `<div class="rit-x">${fmtX(s.ritmo)}×</div>` : ""}` : "—"}</td>`; }
@@ -799,7 +799,7 @@ async function telaAuto() {
      <span id="esc-info" class="small mute" style="flex-basis:100%"></span></div>
    <div id="rg">Carregando…</div>
    <h2 style="margin-top:28px">Regiões e grupos</h2>
-   <p class="mute">O <b>intervalo normal</b> é o tempo entre uma reserva e a seguinte para a mesma noite (75% dos casos, últimos 90 dias). A coluna geral (antecedência até 30 dias) define o grupo sugerido: até 2 dias = Rápida, 3–5 = Média, 6+ = Lenta. O <b>freio</b> usa o normal da faixa de antecedência em que a noite está — quanto mais longe o check-in, mais espaçadas as reservas costumam ser (faixa com poucos dados usa o geral). Você pode trocar o grupo ou dar uma tabela própria para a região.</p>
+   <p class="mute">O <b>intervalo normal</b> é o tempo entre uma reserva e a seguinte com o mesmo dia de check-in (75% dos casos, últimos 90 dias). A coluna geral (antecedência até 30 dias) define o grupo sugerido: até 2 dias = Rápida, 3–5 = Média, 6+ = Lenta. O <b>freio</b> usa o normal da faixa de antecedência em que a noite está — quanto mais longe o check-in, mais espaçadas as reservas costumam ser (faixa com poucos dados usa o geral). Você pode trocar o grupo ou dar uma tabela própria para a região.</p>
    <div id="regs">Carregando…</div>
    <h2 style="margin-top:28px">Reação às vendas</h2>
    <p class="mute">Ajusta a sugestão da tabela conforme a <b>recência</b> (dias sem reserva para aquela noite, comparados ao intervalo normal da região) e o <b>ritmo</b> de vendas (reservas da última semana vs. o normal). O freio recua quando não vende e a aceleração avança quando vende rápido. Os números aparecem na grade do calendário, nas linhas abaixo da sugestão.</p>
@@ -1038,7 +1038,7 @@ function desenharReacao(msg) {
   el.innerHTML = `<label class="rea-on"><input type="checkbox" id="rea-ativo" ${R.ativo !== false ? "checked" : ""}> Usar a reação às vendas na sugestão</label>
    <div class="rea-grid">
     <div><h3>Freio: dias sem reserva</h3>
-     <p class="small mute">Dias sem reserva para aquela noite (desde a última reserva feita para ela) divididos pelo <b>intervalo normal da região naquela antecedência</b> (ex.: 4 dias a 15–30 dias do check-in, 10 dias a mais de 30). Assim a mesma configuração serve para região rápida e lenta. Vale só para <b>acréscimos</b> e só se ainda houver unidade livre.</p>
+     <p class="small mute">Dias desde a última reserva criada <b>com check-in naquela data</b>, divididos pelo <b>intervalo normal da região naquela antecedência</b> (ex.: 4 dias a 15–30 dias do check-in, 10 dias a mais de 30). Assim a mesma configuração serve para região rápida e lenta. Vale só para <b>acréscimos</b> e só se ainda houver unidade livre.</p>
      <table class="t rea-t"><tr><th>De (× o normal)</th><th>Até (× o normal)</th><th>Usar do acréscimo</th><th></th></tr>
       ${R.freio.map((f, i) => `<tr><td><input type="number" min="0" step="0.5" data-f="${i}" data-k="de" value="${f.de}"> ×</td>
         <td><input type="number" min="0" step="0.5" data-f="${i}" data-k="ate" value="${f.ate ?? ""}" placeholder="ou mais"> ×</td>
@@ -1095,7 +1095,7 @@ function tipSug(s) {
 }
 function tipRecencia(s) {
   if (!s) return "";
-  return `Última reserva para esta noite: ${s.ultima_res ? fmtD(s.ultima_res) : "nenhuma"}` + (s.ultimo_ajuste ? ` | Último ajuste de preço: ${fmtHora(s.ultimo_ajuste)}` : "") + ` | Conta desde a última reserva para esta noite.` + (s.intervalo ? ` | Intervalo normal da região: ${s.intervalo} dia${s.intervalo === 1 ? "" : "s"}` + (s.vezes != null ? ` → ${fmtX(s.vezes)}× o normal` : "") : "");
+  return `Última reserva com check-in nesta data: ${s.ultima_res ? fmtD(s.ultima_res) : "nenhuma"}` + (s.ultimo_ajuste ? ` | Último ajuste de preço: ${fmtHora(s.ultimo_ajuste)}` : "") + ` | Conta desde a última reserva criada com check-in neste dia.` + (s.intervalo ? ` | Intervalo normal da região: ${s.intervalo} dia${s.intervalo === 1 ? "" : "s"}` + (s.vezes != null ? ` → ${fmtX(s.vezes)}× o normal` : "") : "");
 }
 function tipRitmo(s) {
   if (!s) return "";
@@ -1258,7 +1258,7 @@ function telaAjuda() {
      <ol class="aj-leg">
       <li>${n(1)} <b>Ocupação da região</b>: unidades ocupadas ÷ em operação. Verde = cheia, vermelho = vazia.</li>
       <li>${n(2)} <b>Sugestão da automação</b>: % sobre a base. <b>▼</b> = freada pelas vendas, <b>▲</b> = acelerada. Mouse em cima mostra o porquê.</li>
-      <li>${n(3)} <b>Dias sem reserva</b>: há quantos dias não entra reserva para aquela noite (e quantas vezes o normal da região).</li>
+      <li>${n(3)} <b>Dias sem reserva</b>: há quantos dias não entra reserva <b>com check-in naquele dia</b> (e quantas vezes o normal da região).</li>
       <li>${n(4)} <b>Vendas 7 dias</b>: reservas da última semana para a noite e o ritmo vs. o normal.</li>
       <li>${n(5)} <b>Cor da célula</b>: laranja = acima da base, verde = abaixo, branco = na base. <s>300</s> <b>246</b> = preço atual → preço que a sugestão daria.</li>
       <li>${n(6)} Cinza = reservado · hachurado = bloqueado/manutenção.</li>
@@ -1285,7 +1285,7 @@ function telaAjuda() {
      <div class="aj-pc"><small>Passo 1 · Tabela</small><b>+30%</b><p>Região com <b>78%</b> de ocupação, check-in em <b>2 dias</b> → a tabela da região diz +30%.</p>
        <table class="aj-mini"><tr><th></th><th>0–2 d</th><th>3–7 d</th></tr><tr><th>70–85%</th><td class="hl">+30</td><td>+70</td></tr><tr><th>85–100%</th><td>+70</td><td>+100</td></tr></table></div>
      <div class="aj-op">→</div>
-     <div class="aj-pc"><small>Passo 2 · Freio</small><b>× 75%</b><p>A noite está há <b>5 dias</b> sem reserva; o normal da região é 3 → <b>1,7×</b> o normal → usa 75% do acréscimo.</p>
+     <div class="aj-pc"><small>Passo 2 · Freio</small><b>× 75%</b><p>Há <b>5 dias</b> não entra reserva com check-in nesse dia; o normal da região é 3 → <b>1,7×</b> o normal → usa 75% do acréscimo.</p>
        <div class="aj-bar"><i style="width:18%"></i><i style="width:22%"></i><i class="hl" style="width:25%"></i><i style="width:35%"></i></div><div class="aj-bar-l"><span>até 1,5× 100%</span><span>1,5–2,5× 75%</span><span>2,5–4× 50%</span><span>4×+ 0%</span></div></div>
      <div class="aj-op">→</div>
      <div class="aj-pc"><small>Passo 3 · Aceleração</small><b>+0</b><p>Vendas da semana = 1× o normal → não soma nada. Se vendesse <b>2×</b> o normal, somaria +10 pontos.</p></div>
@@ -1322,7 +1322,7 @@ function telaAjuda() {
     <dl class="aj-dl">
      <dt>Diária base</dt><dd>preço de referência da noite, por período (temporada/feriado), vindo do backup de 27/10/2026.</dd>
      <dt>Antecedência</dt><dd>dias entre hoje e o check-in da noite.</dd>
-     <dt>Intervalo normal</dt><dd>tempo típico entre uma reserva e a seguinte para a mesma noite, na região, por faixa de antecedência.</dd>
+     <dt>Intervalo normal</dt><dd>tempo típico entre uma reserva e a seguinte com o mesmo dia de check-in, na região, por faixa de antecedência.</dd>
      <dt>Ritmo</dt><dd>reservas da última semana para a noite ÷ o normal da região nessa antecedência.</dd>
      <dt>Grupo de regiões</dt><dd>regiões que compartilham a mesma tabela de automação (ou cada uma com tabela própria).</dd>
      <dt>Margem de manobra</dt><dd>anúncio técnico de reserva; não entra na ocupação nem na automação.</dd>
