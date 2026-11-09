@@ -241,6 +241,14 @@ tr.rsel td{background:var(--orange-soft)}
 .sb-p{font-size:.72rem;font-weight:700;padding:2px 7px;border-radius:8px}.sb-p.alta{background:#F26B2E;color:#fff}.sb-p.media{background:#fde9df;color:#a2441a}.sb-p.baixa{background:#eef0f4;color:#5f6676}
 .sb-s{font-weight:700;padding:0 5px;border-radius:6px}.sb-s.s10{background:#fdecdf}.sb-s.s15{background:#fbd6bf}
 .sb-barra .in{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:var(--navy);color:#fff;border-radius:12px;padding:10px 14px;display:flex;gap:10px;align-items:center;box-shadow:0 6px 24px rgba(0,0,0,.2);z-index:20}
+.sb-busca{position:relative}.sb-busca input{width:260px}
+.sb-dd{position:absolute;top:100%;left:0;z-index:30;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);width:440px;max-height:360px;overflow:auto;margin-top:4px}
+.sb-dd div{padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--line);font-size:.85rem}.sb-dd div:hover,.sb-dd div.at{background:#fff7f2}.sb-dd small{color:var(--mute)}
+.sb-ed{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0 0 12px;background:#fffdfa}.sb-ed h3{margin:0 0 2px;font-size:1rem}
+.sb-ed .lin{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:10px}.sb-ed .rap button{padding:3px 8px;margin-right:3px}
+.sb-ed table{border-collapse:collapse;margin-top:10px;font-size:.82rem}.sb-ed td,.sb-ed th{padding:3px 9px;border-top:1px solid var(--line);text-align:right}.sb-ed th{text-align:right;color:var(--mute);font-weight:600}
+.sb-ed td:first-child,.sb-ed th:first-child{text-align:left}.sb-ed tr.fora td{color:#b9bdc6}.sb-ed .perm{background:#eef3ff;border-radius:8px;padding:6px 10px;margin-top:8px;font-size:.82rem}
+.sb-edt{background:none;border:1px solid var(--line);border-radius:6px;padding:1px 6px;cursor:pointer;font-size:.75rem;margin-left:6px}
 .sb-barra button{margin-left:4px}.sb-pm{display:inline-block;background:var(--panel);border-radius:6px;padding:1px 6px;margin:2px;font-size:.8rem}
 .nv-st{font-size:.75rem;font-weight:600;padding:1px 6px;border-radius:8px}.nv-st.pen{background:#fdecc8;color:#8a5a00}.nv-st.her{background:#e3f0ff;color:#1f4f8a}.nv-st.ok{background:#e4f5e8;color:#2c6b3a}
 .nv-op{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.nv-or{color:var(--mute);font-size:.8rem}.nv-t td{vertical-align:top}
@@ -1562,7 +1570,7 @@ function telaAjuda() {
       <h4>✋ Depois de um ajuste manual</h4><p class="small">O preço que você deu <b>fica</b> enquanto a noite estiver na mesma faixa da tabela (ocupação × antecedência). Se mudar de faixa, a automação aplica <b>só a diferença</b> em cima do seu preço. "Voltar à base" devolve a noite à automação normal.</p>
       <h4>🔒 Períodos protegidos</h4><p class="small">Natal/Réveillon, janeiro, Carnaval e Semana Santa: a automação <b>só sobe</b> (nunca baixa, sem freio). Na grade aparece 🔒 na linha da sugestão.</p>
       <h4>✦ Assistente (IA)</h4><p class="small">Botão laranja no canto da tela. Pergunte sobre ocupação, bases e sugestões, ou peça "suba 10% a base do X em dezembro" / "copie a base do X para o Y com −10%". Escolha <b>📍 O que está na tela</b> ou <b>🌎 Geral</b>. Ela consulta os dados da ferramenta e lê a Stays (reservas e calendário, só leitura) e decide como revenue management: ritmo e resultado do ano passado, preço contra o ano passado e escassez. Cada ajuste sugerido vem num <b>cartão</b> com <b>Aprovar e gravar na Stays</b> ou <b>Recusar</b>. A barrinha no topo mostra o quanto do limite do mês já foi usado.</p>
-      <h4>📈 Sugestões de base</h4><p class="small">A aba <i>Sugestões de base</i> lista as unidades que, nos próximos 6 meses, já venderam bem acima da região e do mesmo período do ano passado (mesma antecedência). Sugere +10% ou +15% na <b>base</b> do mês; você marca, ajusta o % e aplica com prévia. A automação segue por cima da nova base.</p>
+      <h4>📈 Sugestões de base</h4><p class="small">A aba <i>Sugestões de base</i> lista as unidades que, nos próximos 6 meses, já venderam bem acima da região e do mesmo período do ano passado (mesma antecedência). Sugere +10% ou +15% na <b>base</b> do mês; você marca, ajusta o % e aplica com prévia. A automação segue por cima da nova base.</p><p class="small"><b>✏️ Editar a base de qualquer imóvel:</b> no campo <i>Buscar imóvel</i>, digite parte do código, do nome ou do proprietário. Enquanto você digita, aparece a lista dos imóveis que batem com a busca (os que têm sugestão vêm primeiro, com o % sugerido) e a tabela também filtra. Clique num imóvel (ou em <i>✏️ editar base</i> na linha) para abrir o editor: escolha o % (já vem com o sugerido; negativo baixa, positivo sobe, de −30% a +50%) e se vale <b>só num período</b> (de/até) ou <b>para sempre</b>. "Para sempre" muda todas as noites já no calendário (cerca de 13 meses) e faz as datas que forem entrando depois já chegarem com o mesmo %. O editor mostra a base de hoje e a nova, mês a mês, antes de gravar. Fica no Histórico com Desfazer; para parar o % permanente nas datas novas, use o botão no próprio editor.</p>
       <h4>🆕 Anúncios novos</h4><p class="small">Se o preço do anúncio novo foi copiado de outro, ele <b>herda a base e o ajuste</b> desse outro e já entra nas rodadas. Se não der para saber a origem, fica <b>fora da automação</b> até alguém confirmar em <i>Automação → Anúncios novos</i> (usar o preço atual ou copiar de outro anúncio ±%). Na grade, o nome mostra o selo "novo".</p></div>
     </div>
     ${onde("Automação → Rodadas automáticas → Ver (por região e diária a diária)", "Automação → Rodadas automáticas → Parâmetros · botão Pausar")}
@@ -1732,7 +1740,7 @@ const PRIO = { alta: "Alta", media: "Média", baixa: "Baixa" };
 async function telaBase() {
   $("#app").innerHTML = cabecalho() + `<div class="faixa"><label>Região <select id="sb-reg"><option value="">Todas</option>${S.regions.map((r) => `<option ${SB.reg === r.name ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select></label>
     <span class="sb-pr">Prioridade ${["alta", "media", "baixa"].map((p) => `<label><input type="checkbox" data-sbp="${p}" ${SB.prio.has(p) ? "checked" : ""}> ${PRIO[p]}</label>`).join("")}</span>
-    <label>Buscar <input id="sb-busca" value="${esc(SB.busca)}" placeholder="código ou nome" style="width:160px"></label><span id="sb-cont" class="small mute"></span></div>
+    <label class="sb-busca">Buscar imóvel <input id="sb-busca" value="${esc(SB.busca)}" placeholder="código, imóvel ou proprietário" autocomplete="off"><div class="sb-dd" id="sb-dd" hidden></div></label><span id="sb-cont" class="small mute"></span></div>
    <div class="wrap"><details class="sb-como"><summary><b>Como a sugestão é feita</b> — unidades vendendo bem acima da região e do ano passado, nos próximos 6 meses</summary>
     <div class="sb-crit">
      <div><b>Ocupação já vendida</b><p>Noites reservadas ÷ noites disponíveis no mês (bloqueio, manutenção e uso do proprietário não contam). Mês corrente: de hoje até o fim do mês.</p></div>
@@ -1742,11 +1750,20 @@ async function telaBase() {
      <div><b>Prioridade</b><p><b>Alta</b>: forte em 3+ meses. <b>Média</b>: 2 meses. <b>Baixa</b>: 1 mês (pode ser só um grupo grande).</p></div>
      <div><b>Ao aplicar</b><p>A <b>base</b> daquelas noites sobe o %; o ajuste da automação continua valendo por cima. Fica no Histórico com Desfazer.</p></div>
     </div></details>
-    <div id="sb">Calculando… (leva alguns segundos)</div></div>
+    <div id="sb-ed"></div><div id="sb">Calculando… (leva alguns segundos)</div></div>
    <div class="sb-barra" id="sb-barra"></div>`;
   ligarCab();
   $("#sb-reg").onchange = (e) => { SB.reg = e.target.value; desenharBase(); };
-  $("#sb-busca").oninput = (e) => { SB.busca = e.target.value; desenharBase(); };
+  $("#sb-busca").oninput = (e) => { SB.busca = e.target.value; desenharBase(); sbDropdown(); };
+  $("#sb-busca").onfocus = sbDropdown;
+  $("#sb-busca").onkeydown = (e) => { const it = [...document.querySelectorAll("#sb-dd [data-sbe]")]; if (!it.length) return;
+    let i = it.findIndex((x) => x.classList.contains("at"));
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); it[i]?.classList.remove("at"); i = e.key === "ArrowDown" ? Math.min(it.length - 1, i + 1) : Math.max(0, i - 1); it[i].classList.add("at"); it[i].scrollIntoView({ block: "nearest" }); }
+    if (e.key === "Enter") { e.preventDefault(); (it[i] ?? it[0]).click(); }
+    if (e.key === "Escape") $("#sb-dd").hidden = true; };
+  document.addEventListener("click", sbFechaDd);
+  if (!SB.lista) api("base_lista").then((r) => { SB.lista = r.lista; SB.perm = Object.fromEntries(r.perm.map((p) => [p.sell_id, p])); }).catch(() => {});
+  if (SB.ed) desenharEditor();
   document.querySelectorAll("[data-sbp]").forEach((c) => c.onchange = () => { c.checked ? SB.prio.add(c.dataset.sbp) : SB.prio.delete(c.dataset.sbp); desenharBase(); });
   if (!SB.dados) {
     try { SB.dados = await api("sug_base", { meses: 6 }); for (const u of SB.dados.unidades) SB.pct[u.sell_id] = Object.fromEntries(u.meses.map((m) => [m.mes, m.sug])); }
@@ -1754,9 +1771,100 @@ async function telaBase() {
   }
   desenharBase();
 }
+const sbNorm = (t) => String(t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[\s._\-/()]+/g, "");
+const sbBate = (u, b) => !b || sbNorm(u.code).includes(b) || sbNorm(u.nome).includes(b);
 function sbVisiveis() {
-  const b = SB.busca.trim().toLowerCase();
-  return (SB.dados?.unidades || []).filter((u) => SB.prio.has(u.prioridade) && (!SB.reg || u.region_name === SB.reg) && (!b || (u.code || "").toLowerCase().includes(b) || u.nome.toLowerCase().includes(b)));
+  const b = sbNorm(SB.busca);
+  return (SB.dados?.unidades || []).filter((u) => SB.prio.has(u.prioridade) && (!SB.reg || u.region_name === SB.reg) && sbBate(u, b));
+}
+/* ---------- edição manual da base ---------- */
+const fmtDA = (d) => d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(2, 4)}` : "";
+function sbSugDe(id) { return SB.dados?.unidades.find((u) => u.sell_id === id) || null; }
+function sbFechaDd(e) { if (!e.target.closest?.(".sb-busca")) { const d = $("#sb-dd"); if (d) d.hidden = true; } }
+function sbDropdown() {
+  const dd = $("#sb-dd"); if (!dd) return; const b = sbNorm(SB.busca);
+  if (b.length < 2) { dd.hidden = true; return; }
+  if (!SB.lista) { dd.hidden = false; dd.innerHTML = `<div class="mute">Carregando imóveis…</div>`; setTimeout(sbDropdown, 600); return; }
+  const it = SB.lista.filter((l) => (!SB.reg || l.region_name === SB.reg) && sbBate(l, b))
+    .map((l) => ({ l, s: sbSugDe(l.id) })).sort((a, c) => (c.s ? 1 : 0) - (a.s ? 1 : 0)).slice(0, 15);
+  dd.hidden = false;
+  dd.innerHTML = it.length ? it.map(({ l, s }) => { const mx = s ? Math.max(...s.meses.map((m) => m.sug)) : 0;
+    return `<div data-sbe="${l.id}"><b>${esc(l.code || "")}</b> ${esc(nomeCurto(l.nome))}${s ? ` <span class="sb-s s${mx}">sugestão +${mx}% · ${PRIO[s.prioridade]}</span>` : ""}${SB.perm?.[l.id] ? ` <span class="sb-pm">base ${sinalPct(SB.perm[l.id].fator)} sempre</span>` : ""}<br><small>${esc(l.region_name || "")}</small></div>`; }).join("")
+    : `<div class="mute">Nenhum imóvel com “${esc(SB.busca)}”.</div>`;
+  dd.querySelectorAll("[data-sbe]").forEach((x) => x.onclick = () => { dd.hidden = true; abrirEditor(x.dataset.sbe); });
+}
+const sinalPct = (f) => { const p = Math.round((Number(f) - 1) * 1000) / 10; return `${p > 0 ? "+" : ""}${String(p).replace(".", ",")}%`; };
+async function abrirEditor(id) {
+  const l = SB.lista?.find((x) => x.id === id) || sbSugDe(id) && { id, code: sbSugDe(id).code, nome: sbSugDe(id).nome, region_name: sbSugDe(id).region_name };
+  const s = sbSugDe(id);
+  const sugs = s ? s.meses.map((m) => m.sug).filter(Boolean) : [];
+  const pct = sugs.length ? sugs.sort((a, b) => sugs.filter((x) => x === b).length - sugs.filter((x) => x === a).length)[0] : "";
+  const h = hoje(); const fimMes = addD(addD(h.slice(0, 8) + "28", 4).slice(0, 8) + "01", -1);
+  SB.ed = { id, l, s, pct, modo: "periodo", de: h, ate: fimMes, info: null };
+  desenharEditor(); $("#sb-ed").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  try { SB.ed.info = await api("base_info", { sell_id: id }); } catch (e) { SB.ed.erro = e.message; }
+  if (SB.ed?.id === id) desenharEditor();
+}
+function sbEdDatas() {
+  const E = SB.ed, h = hoje(); if (!E) return [];
+  const de = E.modo === "sempre" ? h : (E.de < h ? h : E.de), ate = E.modo === "sempre" ? (E.info?.ate || addD(h, 400)) : E.ate;
+  const out = []; if (!de || !ate || ate < de) return out;
+  for (let d = de; d <= ate && out.length < 800; d = addD(d, 1)) out.push(d);
+  return out;
+}
+function desenharEditor() {
+  const el = $("#sb-ed"); const E = SB.ed; if (!el) return;
+  if (!E) { el.innerHTML = ""; return; }
+  const p = Number(E.pct || 0), ds = sbEdDatas(), set = new Set(ds.map((d) => d.slice(0, 7)));
+  const fmt = (v) => v == null ? "—" : `R$ ${Math.round(v).toLocaleString("pt-BR")}`;
+  const sugMes = Object.fromEntries((E.s?.meses || []).map((m) => [m.mes.slice(0, 7), m.sug]));
+  const linhas = (E.info?.meses || []).map((m) => { const k = String(m.mes).slice(0, 7), dentro = set.has(k);
+    return `<tr class="${dentro ? "" : "fora"}"><td>${NOME_MES(String(m.mes).slice(0, 10))}</td><td>${fmt(m.base_media)}</td><td>${dentro && p ? `<b>${fmt(m.base_media * (1 + p / 100))}</b>` : "—"}</td><td>${sugMes[k] ? `<span class="sb-s s${sugMes[k]}">+${sugMes[k]}%</span>` : ""}</td></tr>`; }).join("");
+  const perm = E.info?.perm && Number(E.info.perm.fator) !== 1 ? E.info.perm : null;
+  el.innerHTML = `<div class="sb-ed"><div style="display:flex;justify-content:space-between;gap:10px"><div><h3>✏️ Editar base · <b>${esc(E.l?.code || "")}</b> ${esc(nomeCurto(E.l?.nome || ""))}</h3><span class="small mute">${esc(E.l?.region_name || "")}${E.s ? ` · sugestão ${PRIO[E.s.prioridade]}` : " · sem sugestão automática"}</span></div><button id="ed-x" title="Fechar">✕</button></div>
+    <div class="lin"><label>Mudar a base em <input id="ed-pct" type="number" step="1" min="-30" max="50" value="${E.pct}" style="width:70px"> %</label>
+      <span class="rap">${[-10, -5, 5, 10, 15].map((v) => `<button data-edp="${v}">${v > 0 ? "+" : ""}${v}%</button>`).join("")}</span>
+      <span class="small mute">negativo baixa, positivo sobe · de −30% a +50%${E.s ? " · já vem com o % sugerido" : ""}</span></div>
+    <div class="lin"><label><input type="radio" name="ed-m" value="periodo" ${E.modo === "periodo" ? "checked" : ""}> Só num período</label>
+      <label>de <input type="date" id="ed-de" value="${E.de}" min="${hoje()}" ${E.modo === "sempre" ? "disabled" : ""}></label>
+      <label>até <input type="date" id="ed-ate" value="${E.ate}" min="${hoje()}" ${E.modo === "sempre" ? "disabled" : ""}></label>
+      <label><input type="radio" name="ed-m" value="sempre" ${E.modo === "sempre" ? "checked" : ""}> <b>Para sempre</b> (de hoje em diante)</label></div>
+    ${E.modo === "sempre" ? `<p class="small mute" style="margin:6px 0 0">Muda a base de todas as noites já no calendário (até ${E.info?.ate ? fmtDA(E.info.ate) : "…"}) e as datas que forem entrando no calendário depois já chegam com esse %.</p>` : ""}
+    ${perm ? `<div class="perm">Este imóvel já tem <b>${sinalPct(perm.fator)} permanente</b> na base (desde ${fmtDA(perm.desde)}, por ${esc(String(perm.set_by || "").split("@")[0])}). Um novo % "para sempre" soma por cima. <button id="ed-perm0">Parar de aplicar nas datas novas</button></div>` : ""}
+    ${E.erro ? `<p class="msg">${esc(E.erro)}</p>` : E.info ? `<table><tr><th>Mês</th><th>Base hoje</th><th>Base nova</th><th>Sugestão</th></tr>${linhas}</table><p class="small mute" style="margin:4px 0 0">Base = diária da menor estadia (2+ noites), média do mês. A automação continua ajustando por cima da base nova.</p>` : `<p class="small mute">Carregando a base atual…</p>`}
+    <div class="lin"><button class="prim" id="ed-ok" ${p && ds.length ? "" : "disabled"}>Prévia e aplicar · ${ds.length} noites</button></div></div>`;
+  $("#ed-x").onclick = () => { SB.ed = null; desenharEditor(); };
+  $("#ed-pct").oninput = (e) => { E.pct = e.target.value; desenharEditorParcial(); };
+  $("#ed-pct").onchange = () => desenharEditor();
+  el.querySelectorAll("[data-edp]").forEach((b) => b.onclick = () => { E.pct = Number(b.dataset.edp); desenharEditor(); });
+  el.querySelectorAll("[name=ed-m]").forEach((r) => r.onchange = () => { E.modo = r.value; desenharEditor(); });
+  $("#ed-de").onchange = (e) => { E.de = e.target.value; if (E.ate < E.de) E.ate = E.de; desenharEditor(); };
+  $("#ed-ate").onchange = (e) => { E.ate = e.target.value; desenharEditor(); };
+  $("#ed-ok").onclick = previaEditor;
+  $("#ed-perm0")?.addEventListener("click", async () => {
+    if (!confirm("As datas que entrarem no calendário daqui pra frente voltam a chegar sem o % permanente. As noites já alteradas continuam como estão. Confirmar?")) return;
+    try { await api("base_perm", { sell_id: E.id, zerar: true }); delete SB.perm?.[E.id]; E.info = await api("base_info", { sell_id: E.id }); desenharEditor(); } catch (er) { alert(er.message); }
+  });
+}
+function desenharEditorParcial() { const b = $("#ed-ok"); const p = Number(SB.ed?.pct || 0), n = sbEdDatas().length; if (b) { b.disabled = !(p && n && p >= -30 && p <= 50); } }
+function previaEditor() {
+  const E = SB.ed; const p = Number(E.pct); const ds = sbEdDatas();
+  if (!p || p < -30 || p > 50) return alert("Informe um % entre −30 e +50.");
+  const sempre = E.modo === "sempre";
+  abrirModal(`<h3>Mudar a base de ${esc(E.l?.code || "")} ${esc(nomeCurto(E.l?.nome || ""))}</h3>
+    <p><b>${p > 0 ? "+" : ""}${p}%</b> na diária base · ${sempre ? `<b>para sempre</b>: de hoje até ${fmtDA(ds[ds.length - 1])} já agora, e as datas novas que entrarem no calendário depois também` : `de <b>${fmtDA(ds[0])}</b> até <b>${fmtDA(ds[ds.length - 1])}</b>`} · ${ds.length} noites.</p>
+    <p class="small">O preço na Stays muda na mesma proporção e a automação continua ajustando por cima da base nova. Fica no Histórico como "base manual", com Desfazer${sempre ? " (o Desfazer volta as noites; para parar de aplicar nas datas novas use o botão no editor)" : ""}.</p>`,
+    "Confirmar e gravar na Stays", async () => {
+      $("#m-ok").disabled = true; $("#m-msg").textContent = "Gravando…";
+      try {
+        const mapa = Object.fromEntries(ds.map((d) => [d, p]));
+        const r = await api("apply", { op: "base_pct", sell_ids: [E.id], dates: ds, base_pct_por_sell_data: { [E.id]: mapa }, origem: "base manual" });
+        if (sempre) { await api("base_perm", { sell_id: E.id, pct: p }); const x = await api("base_lista"); SB.perm = Object.fromEntries(x.perm.map((q) => [q.sell_id, q])); }
+        fecharModal(); S.grid = null; SB.dados = null;
+        alert(r.erro ? `Gravado com ${r.erro} erro(s):\n${(r.erros || []).slice(0, 8).join("\n")}` : `Base atualizada: ${r.ok.toLocaleString("pt-BR")} diárias gravadas na Stays${sempre ? " e as datas novas já vão chegar com o %" : ""}. Está no Histórico, com Desfazer.`);
+        E.info = await api("base_info", { sell_id: E.id }); E.pct = ""; telaBase();
+      } catch (e) { $("#m-msg").textContent = e.message; $("#m-ok").disabled = false; }
+    });
 }
 function desenharBase() {
   const el = $("#sb"); if (!el || !SB.dados) return;
@@ -1767,7 +1875,7 @@ function desenharBase() {
   let h = `<div class="sb-box"><table class="t sb-t"><thead><tr><th><input type="checkbox" id="sb-all" title="Marcar todas da lista"></th><th>Unidade</th><th>Prior.</th><th title="Ocupação já vendida nos 6 meses">6 meses</th>${meses.map((m) => `<th>${NOME_MES(m)}</th>`).join("")}</tr></thead><tbody>`;
   for (const u of us) {
     h += `<tr class="${SB.marc.has(u.sell_id) ? "on" : ""}"><td><input type="checkbox" data-sbm="${u.sell_id}" ${SB.marc.has(u.sell_id) ? "checked" : ""}></td>
-      <td class="sb-n"><b>${esc(u.code || "")}</b> ${esc(nomeCurto(u.nome))}<div class="small mute">${esc(u.region_name)}</div></td>
+      <td class="sb-n"><b>${esc(u.code || "")}</b> ${esc(nomeCurto(u.nome))}<button class="sb-edt" data-sbedit="${u.sell_id}" title="Editar a base deste imóvel por um período ou para sempre">✏️ editar base</button><div class="small mute">${esc(u.region_name)}</div></td>
       <td><span class="sb-p ${u.prioridade}">${PRIO[u.prioridade]}</span></td><td><b>${pc(u.occ6)}</b></td>`;
     for (const m of u.meses) {
       const v = SB.pct[u.sell_id]?.[m.mes] ?? 0;
@@ -1780,6 +1888,7 @@ function desenharBase() {
   el.innerHTML = h + `</tbody></table></div>`;
   el.querySelectorAll("[data-sbm]").forEach((c) => c.onchange = () => { c.checked ? SB.marc.add(c.dataset.sbm) : SB.marc.delete(c.dataset.sbm); c.closest("tr").classList.toggle("on", c.checked); barraBase(); });
   $("#sb-all").onchange = (e) => { for (const u of us) e.target.checked ? SB.marc.add(u.sell_id) : SB.marc.delete(u.sell_id); desenharBase(); };
+  el.querySelectorAll("[data-sbedit]").forEach((b) => b.onclick = () => abrirEditor(b.dataset.sbedit));
   el.querySelectorAll("[data-sbu]").forEach((i) => i.onchange = () => { (SB.pct[i.dataset.sbu] ??= {})[i.dataset.sbmes] = Number(i.value || 0); barraBase(); });
   barraBase();
 }
