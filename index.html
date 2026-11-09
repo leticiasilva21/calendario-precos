@@ -1295,7 +1295,7 @@ async function carregarNovos(msg) {
   const pend = ns.filter((n) => n.base_status === "pendente" || !n.base_status), ok = ns.filter((n) => !pend.includes(n));
   const quando = (d) => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
   const st = (n) => n.base_status === "herdada" ? `<span class="nv-st her">herdou de ${esc(n.origem_code || "")} ${esc(nomeCurto(n.origem_nome || ""))}</span>`
-    : n.base_status === "ok" ? `<span class="nv-st ok">${n.base_origem ? `base de ${esc(n.origem_code || "")} ${esc(nomeCurto(n.origem_nome || ""))}` : "base = preço atual"} (confirmado)</span>`
+    : n.base_status === "ok" ? `<span class="nv-st ok">${n.base_origem ? `preço clonado de ${esc(n.origem_code || "")} ${esc(nomeCurto(n.origem_nome || ""))} · base sem as oscilações` : "base = preço cadastrado na Stays"}</span>`
     : n.base_status === "pendente" ? `<span class="nv-st pen">aguardando confirmação</span>` : `<span class="nv-st pen">sendo analisado…</span>`;
   let h = msg ? `<p>${msg}</p>` : "";
   if (!ns.length) h += `<p class="small mute">Nenhum anúncio novo nos últimos 30 dias.</p>`;
@@ -1304,7 +1304,7 @@ async function carregarNovos(msg) {
     for (const n of pend) {
       const cs = NOVOS.candidatos?.[n.region_name] || [];
       h += `<tr><td><b>${esc(n.code || "")}</b> ${esc(nomeCurto(n.nome))}<div>${st(n)}</div></td><td>${esc(n.region_name || "—")}</td><td>${quando(n.novo_desde)}</td>
-        <td>${n.base_status === "pendente" ? `<div class="nv-op"><button data-nv-atual="${n.id}">Usar o preço atual como base</button>
+        <td>${n.base_status === "pendente" ? `<div class="nv-op"><button data-nv-atual="${n.id}">Usar o preço cadastrado na Stays</button>
           <span class="nv-or">ou</span> copiar de <select data-nv-orig="${n.id}" style="max-width:240px"><option value="">escolha o anúncio…</option>${cs.map((c) => `<option value="${c.id}">${esc((c.code ? c.code + " · " : "") + nomeCurto(c.nome))}</option>`).join("")}</select>
           <input type="number" data-nv-pct="${n.id}" value="0" style="width:60px" title="diferença sobre a base do outro">% <button class="prim" data-nv-copiar="${n.id}">Copiar e gravar</button></div>` : `<span class="small mute">o servidor confere a cada poucos minutos</span>`}</td></tr>`;
     }
@@ -1314,7 +1314,7 @@ async function carregarNovos(msg) {
   el.innerHTML = h;
   el.querySelectorAll("[data-nv-atual]").forEach((b) => b.onclick = async () => {
     const n = ns.find((x) => x.id === b.dataset.nvAtual);
-    if (!confirm(`${n.code || n.nome}: usar o preço que está hoje na Stays como base e colocar na automação?`)) return;
+    if (!confirm(`${n.code || n.nome}: usar o preço cadastrado na Stays como base (sem as oscilações, se ele foi clonado de outro anúncio) e colocar na automação?`)) return;
     b.disabled = true; try { await api("novo_confirmar", { sell_id: n.id, modo: "atual" }); S.grid = null; carregarNovos(`<span class="okmsg">Base confirmada — ${esc(n.code || n.nome)} entra na próxima rodada.</span>`); } catch (e) { alert(e.message); b.disabled = false; }
   });
   el.querySelectorAll("[data-nv-copiar]").forEach((b) => b.onclick = async () => {
@@ -1570,8 +1570,9 @@ function telaAjuda() {
       <h4>✋ Depois de um ajuste manual</h4><p class="small">O preço que você deu <b>fica</b> enquanto a noite estiver na mesma faixa da tabela (ocupação × antecedência). Se mudar de faixa, a automação aplica <b>só a diferença</b> em cima do seu preço. "Voltar à base" devolve a noite à automação normal.</p>
       <h4>🔒 Períodos protegidos</h4><p class="small">Natal/Réveillon, janeiro, Carnaval e Semana Santa: a automação <b>só sobe</b> (nunca baixa, sem freio). Na grade aparece 🔒 na linha da sugestão.</p>
       <h4>✦ Assistente (IA)</h4><p class="small">Botão laranja no canto da tela. Pergunte sobre ocupação, bases e sugestões, ou peça "suba 10% a base do X em dezembro" / "copie a base do X para o Y com −10%". Escolha <b>📍 O que está na tela</b> ou <b>🌎 Geral</b>. Ela consulta os dados da ferramenta e lê a Stays (reservas e calendário, só leitura) e decide como revenue management: ritmo e resultado do ano passado, preço contra o ano passado e escassez. Cada ajuste sugerido vem num <b>cartão</b> com <b>Aprovar e gravar na Stays</b> ou <b>Recusar</b>. A barrinha no topo mostra o quanto do limite do mês já foi usado.</p>
-      <h4>📈 Sugestões de base</h4><p class="small">A aba <i>Sugestões de base</i> lista as unidades que, nos próximos 6 meses, já venderam bem acima da região e do mesmo período do ano passado (mesma antecedência). Sugere +10% ou +15% na <b>base</b> do mês; você marca, ajusta o % e aplica com prévia. A automação segue por cima da nova base.</p><p class="small"><b>✏️ Editar a base de qualquer imóvel:</b> no campo <i>Buscar imóvel</i>, digite parte do código, do nome ou do proprietário. Enquanto você digita, aparece a lista dos imóveis que batem com a busca (os que têm sugestão vêm primeiro, com o % sugerido) e a tabela também filtra. Clique num imóvel (ou em <i>✏️ editar base</i> na linha) para abrir o editor: escolha o % (já vem com o sugerido; negativo baixa, positivo sobe, de −30% a +50%) e se vale <b>só num período</b> (de/até) ou <b>para sempre</b>. "Para sempre" muda todas as noites já no calendário (cerca de 13 meses) e faz as datas que forem entrando depois já chegarem com o mesmo %. O editor mostra a base de hoje e a nova, mês a mês, antes de gravar. Fica no Histórico com Desfazer; para parar o % permanente nas datas novas, use o botão no próprio editor.</p>
-      <h4>🆕 Anúncios novos</h4><p class="small">Se o preço do anúncio novo foi copiado de outro, ele <b>herda a base e o ajuste</b> desse outro e já entra nas rodadas. Se não der para saber a origem, fica <b>fora da automação</b> até alguém confirmar em <i>Automação → Anúncios novos</i> (usar o preço atual ou copiar de outro anúncio ±%). Na grade, o nome mostra o selo "novo".</p></div>
+      <h4>📈 Sugestões de base</h4><p class="small">A aba <i>Sugestões de base</i> lista as unidades que, nos próximos 6 meses, já venderam bem acima da região e do mesmo período do ano passado (mesma antecedência). Sugere +10% ou +15% na <b>base</b> do mês; você marca, ajusta o % e aplica com prévia. A automação segue por cima da nova base.</p><p class="small"><b>✏️ Editar a base de qualquer imóvel:</b> no campo <i>Buscar imóvel</i>, digite parte do código, do nome ou do proprietário. Enquanto você digita, aparece a lista dos imóveis que batem com a busca (os que têm sugestão vêm primeiro, com o % sugerido) e a tabela também filtra. Clique num imóvel (ou em <i>✏️ editar base</i> na linha) para abrir o editor: escolha o % (já vem com o sugerido; negativo baixa, positivo sobe, de −30% a +50%) e se vale <b>só num período</b> (de/até) ou <b>para sempre</b>. A busca mostra também os imóveis <b>sem sugestão</b> (na tabela, com o aviso "sem sugestão automática") para você poder editar qualquer um. "Para sempre" muda todas as noites já no calendário (cerca de 13 meses) e faz as datas que forem entrando depois já chegarem com o mesmo %. O editor mostra a base de hoje e a nova, mês a mês, antes de gravar. Fica no Histórico com Desfazer; para parar o % permanente nas datas novas, use o botão no próprio editor.</p>
+      <h4>🆕 Anúncios novos</h4><p class="small">A base do anúncio novo sai do <b>preço que quem cadastrou colocou na Stays</b> — a ferramenta não escolhe outro anúncio por conta própria. Como o preço costuma ser clonado de outro anúncio, ele vem com as oscilações daquele (descontos e aumentos da automação noite a noite). Por isso a ferramenta descobre <b>de quem foi clonado e por qual fator</b> (o que mais se repete noite a noite — ex.: o 208 é o 107 ×1,10) e usa como base a <b>base limpa do original × esse fator</b>. Assim a tabela da automação não aplica desconto em cima de desconto.</p>
+      <p class="small">Nas primeiras 48h, se alguém mexer no preço dele direto na Stays (ex.: o cadastro ajustou +10% depois), a base é recalculada sozinha. Se não der para saber de quem foi clonado, a base fica igual ao preço cadastrado e o anúncio fica <b>fora da automação</b> até alguém confirmar em <i>Automação → Anúncios novos</i>. Na grade, o nome mostra o selo "novo".</p></div>
     </div>
     ${onde("Automação → Rodadas automáticas → Ver (por região e diária a diária)", "Automação → Rodadas automáticas → Parâmetros · botão Pausar")}
    </section>
@@ -1762,7 +1763,7 @@ async function telaBase() {
     if (e.key === "Enter") { e.preventDefault(); (it[i] ?? it[0]).click(); }
     if (e.key === "Escape") $("#sb-dd").hidden = true; };
   document.addEventListener("click", sbFechaDd);
-  if (!SB.lista) api("base_lista").then((r) => { SB.lista = r.lista; SB.perm = Object.fromEntries(r.perm.map((p) => [p.sell_id, p])); }).catch(() => {});
+  if (!SB.lista) api("base_lista").then((r) => { SB.lista = r.lista; SB.perm = Object.fromEntries(r.perm.map((p) => [p.sell_id, p])); if (SB.busca) desenharBase(); }).catch(() => {});
   if (SB.ed) desenharEditor();
   document.querySelectorAll("[data-sbp]").forEach((c) => c.onchange = () => { c.checked ? SB.prio.add(c.dataset.sbp) : SB.prio.delete(c.dataset.sbp); desenharBase(); });
   if (!SB.dados) {
@@ -1869,8 +1870,10 @@ function previaEditor() {
 function desenharBase() {
   const el = $("#sb"); if (!el || !SB.dados) return;
   const us = sbVisiveis(); const meses = SB.dados.unidades[0]?.meses.map((m) => m.mes) || [];
-  $("#sb-cont").textContent = `${us.length} unidade(s) na lista`;
-  if (!us.length) { el.innerHTML = `<p class="mute">Nenhuma unidade com esse filtro.</p>`; barraBase(); return; }
+  const bq = sbNorm(SB.busca), comSug = new Set((SB.dados.unidades || []).map((u) => u.sell_id));
+  const extras = bq.length >= 2 && SB.lista ? SB.lista.filter((l) => !comSug.has(l.id) && (!SB.reg || l.region_name === SB.reg) && sbBate(l, bq)).slice(0, 40) : [];
+  $("#sb-cont").textContent = `${us.length} com sugestão${extras.length ? ` · ${extras.length} sem sugestão` : ""}`;
+  if (!us.length && !extras.length) { el.innerHTML = `<p class="mute">Nenhuma unidade com esse filtro.</p>`; barraBase(); return; }
   const pc = (v) => v == null ? "—" : `${Math.round(v)}%`;
   let h = `<div class="sb-box"><table class="t sb-t"><thead><tr><th><input type="checkbox" id="sb-all" title="Marcar todas da lista"></th><th>Unidade</th><th>Prior.</th><th title="Ocupação já vendida nos 6 meses">6 meses</th>${meses.map((m) => `<th>${NOME_MES(m)}</th>`).join("")}</tr></thead><tbody>`;
   for (const u of us) {
@@ -1885,6 +1888,8 @@ function desenharBase() {
     }
     h += `</tr>`;
   }
+  for (const l of extras) h += `<tr class="sb-sem"><td></td><td class="sb-n"><b>${esc(l.code || "")}</b> ${esc(nomeCurto(l.nome))}<button class="sb-edt" data-sbedit="${l.id}" title="Editar a base deste imóvel por um período ou para sempre">✏️ editar base</button><div class="small mute">${esc(l.region_name || "")}</div></td>
+    <td><span class="sb-p baixa">—</span></td><td></td><td colspan="${meses.length}" class="small mute">Sem sugestão automática (não está vendendo bem acima da região e do ano passado). Use <b>✏️ editar base</b> para mudar a base deste imóvel.</td></tr>`;
   el.innerHTML = h + `</tbody></table></div>`;
   el.querySelectorAll("[data-sbm]").forEach((c) => c.onchange = () => { c.checked ? SB.marc.add(c.dataset.sbm) : SB.marc.delete(c.dataset.sbm); c.closest("tr").classList.toggle("on", c.checked); barraBase(); });
   $("#sb-all").onchange = (e) => { for (const u of us) e.target.checked ? SB.marc.add(u.sell_id) : SB.marc.delete(u.sell_id); desenharBase(); };
