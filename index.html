@@ -554,7 +554,7 @@ function desenharGrade() {
   h += `</tr><tr class="sug"><th class="nm">Sugestão da automação${S.detalhado ? "" : ` <button class="lk-sinais" id="tg-sinais" title="Mostrar a linha de vendas dos últimos 7 dias">${S.sinais ? "▾ esconder vendas 7 dias" : "▸ vendas 7 dias"}</button>`}</th>`;
   for (const d of D) { const s = S.sug?.[d]; const mud = s && s.pct != null && s.pct_tabela != null && s.pct !== s.pct_tabela;
     h += `<td class="o small" title="${esc(tipSug(s))}">${s && s.pct != null ? `<span class="b ${s.pct >= 0 ? "up" : "dn"}">${s.pct > 0 ? "+" : ""}${s.pct}%</span>${mud ? `<span class="rea-m">${s.pct < s.pct_tabela ? "▼" : "▲"}</span>` : ""}` : "<span class='mute'>·</span>"}${s?.protegido ? `<span class="prot" title="Período protegido: ${esc(s.protegido.nome)}">🔒</span>` : ""}</td>`; }
-  h += `</tr><tr class="rit1 fixa"><th class="nm">Dias sem reserva <span class="tag">com entrada neste dia</span></th>`;
+  h += `</tr><tr class="rit1 fixa"><th class="nm">Dias sem reserva <span class="tag">que ocupe esta noite</span></th>`;
   for (const d of D) { const s = S.sug?.[d]; const alerta = !S.detalhado && s?.vezes != null && s.vezes >= 2.5;
     h += `<td class="o small ${alerta ? "sv-alerta" : ""}" style="${S.detalhado ? `background:${corSemVenda(s)}` : ""}" data-tiprec="${d}">${s?.sem_venda == null ? "—" : `${s.sem_venda} dia${s.sem_venda === 1 ? "" : "s"}`}${s?.vezes != null ? `<div class="rit-x">${ritmoVenda(s.vezes).rotulo}</div>` : ""}</td>`; }
   h += `</tr><tr class="rit2 fixa"><th class="nm">Vendas nos últimos 7 dias <span class="tag">comparado ao normal</span></th>`;
@@ -1189,7 +1189,7 @@ function desenharReacao(msg) {
   el.innerHTML = `<label class="rea-on"><input type="checkbox" id="rea-ativo" ${R.ativo !== false ? "checked" : ""}> Usar a reação às vendas na sugestão</label>
    <div class="rea-grid">
     <div><h3>Freio: dias sem reserva</h3>
-     <p class="small mute">Dias desde a última reserva criada <b>com check-in naquela data</b>, divididos pelo <b>intervalo normal da região naquela antecedência</b> (ex.: 4 dias a 15–30 dias do check-in, 10 dias a mais de 30). Assim a mesma configuração serve para região rápida e lenta. Vale só para <b>acréscimos</b> e só se ainda houver unidade livre.</p>
+     <p class="small mute">Dias desde a última reserva criada <b>que ocupa aquela noite</b> (com qualquer dia de check-in, sem contar reserva do proprietário), divididos pelo <b>intervalo normal da região naquela antecedência</b> (ex.: 4 dias a 15–30 dias do check-in, 10 dias a mais de 30). Assim a mesma configuração serve para região rápida e lenta. Vale só para <b>acréscimos</b> e só se ainda houver unidade livre.</p>
      <table class="t rea-t"><tr><th>De (× o normal)</th><th>Até (× o normal)</th><th>Usar do acréscimo</th><th></th></tr>
       ${R.freio.map((f, i) => `<tr><td><input type="number" min="0" step="0.5" data-f="${i}" data-k="de" value="${f.de}"> ×</td>
         <td><input type="number" min="0" step="0.5" data-f="${i}" data-k="ate" value="${f.ate ?? ""}" placeholder="ou mais"> ×</td>
@@ -1279,7 +1279,7 @@ function tipRitHtml(d) {
 }
 function tipRecencia(s) {
   if (!s) return "";
-  return `Última reserva com check-in nesta data: ${s.ultima_res ? fmtD(s.ultima_res) : "nenhuma"}` + (s.ultimo_ajuste ? ` | Último ajuste de preço: ${fmtHora(s.ultimo_ajuste)}` : "") + ` | Conta desde a última reserva criada com check-in neste dia.` + (s.intervalo ? ` | Intervalo normal da região: ${s.intervalo} dia${s.intervalo === 1 ? "" : "s"}` + (s.vezes != null ? ` → ${fmtX(s.vezes)}× o normal` : "") : "");
+  return `Última reserva que ocupa esta noite: ${s.ultima_res ? fmtD(s.ultima_res) : "nenhuma"}` + (s.ultimo_ajuste ? ` | Último ajuste de preço: ${fmtHora(s.ultimo_ajuste)}` : "") + ` | Conta desde a última reserva criada que ocupa esta noite (qualquer dia de check-in).` + (s.intervalo ? ` | Intervalo normal da região: ${s.intervalo} dia${s.intervalo === 1 ? "" : "s"}` + (s.vezes != null ? ` → ${fmtX(s.vezes)}× o normal` : "") : "");
 }
 function tipRitmo(s) {
   if (!s) return "";
@@ -1521,7 +1521,7 @@ function telaAjuda() {
      <ol class="aj-leg">
       <li>${n(1)} <b>Ocupação da região</b>: unidades <b>reservadas</b> ÷ em operação. Bloqueios, manutenção e uso do proprietário não contam (para não subir preço sem demanda real).</li>
       <li>${n(2)} <b>Sugestão da automação</b>: % sobre a base. <b>▼</b> = freada pelas vendas, <b>▲</b> = acelerada. Mouse em cima mostra o porquê.</li>
-      <li>${n(3)} <b>Dias sem reserva</b>: há quantos dias não entra reserva <b>com entrada naquele dia</b>, comparado ao normal da região: <b>no ritmo · devagar · parada · muito parada</b> (vermelho = a venda parou). Mouse em cima explica a conta.</li>
+      <li>${n(3)} <b>Dias sem reserva</b>: há quantos dias não entra reserva <b>que ocupe aquela noite</b>, comparado ao normal da região: <b>no ritmo · devagar · parada · muito parada</b> (vermelho = a venda parou). Mouse em cima explica a conta.</li>
       <li>${n(4)} <b>Vendas 7 dias</b>: reservas da última semana para a noite, comparadas ao normal (bem abaixo … bem acima). Fica recolhida: abra em <b>▸ vendas 7 dias</b>.</li>
       <li>${n(5)} <b>Célula</b>: preço no ar em destaque, o % gravado embaixo e, se a automação for mudar, "<i>sug.</i>" com o preço que ela vai gravar. Pontinho <span style="color:var(--orange)">●</span> = 50% ou mais acima da base · <span style="color:#2c8a4b">●</span> = 20% ou mais abaixo. Mouse em cima explica tudo em palavras. A legenda tem <b>Visão Limpa | Detalhada</b> (a detalhada pinta as células pelo desvio da base). A coluna dos nomes alarga arrastando a borda.</li>
       <li>${n(6)} Cinza = reservado · hachurado = bloqueado/manutenção.</li>
@@ -1548,7 +1548,7 @@ function telaAjuda() {
      <div class="aj-pc"><small>Passo 1 · Tabela</small><b>+30%</b><p>Região com <b>78%</b> de ocupação, check-in em <b>2 dias</b> → a tabela da região diz +30%.</p>
        <table class="aj-mini"><tr><th></th><th>0–2 d</th><th>3–7 d</th></tr><tr><th>70–85%</th><td class="hl">+30</td><td>+70</td></tr><tr><th>85–100%</th><td>+70</td><td>+100</td></tr></table></div>
      <div class="aj-op">→</div>
-     <div class="aj-pc"><small>Passo 2 · Freio</small><b>× 75%</b><p>Há <b>5 dias</b> não entra reserva com entrada nesse dia; o normal da região é 1 a cada 3 dias → venda <b>devagar</b> → usa 75% do acréscimo.</p>
+     <div class="aj-pc"><small>Passo 2 · Freio</small><b>× 75%</b><p>Há <b>5 dias</b> não entra reserva que ocupe essa noite; o normal da região é 1 a cada 3 dias → venda <b>devagar</b> → usa 75% do acréscimo.</p>
        <div class="aj-bar"><i style="width:18%"></i><i style="width:22%"></i><i class="hl" style="width:25%"></i><i style="width:35%"></i></div><div class="aj-bar-l"><span>no ritmo 100%</span><span>devagar 75%</span><span>parada 50%</span><span>muito parada 0%</span></div></div>
      <div class="aj-op">→</div>
      <div class="aj-pc"><small>Passo 3 · Aceleração</small><b>+0</b><p>Vendas da semana = 1× o normal → não soma nada. Se vendesse <b>2×</b> o normal, somaria +10 pontos.</p></div>
