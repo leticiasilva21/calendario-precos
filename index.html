@@ -1859,6 +1859,7 @@ function previaEditor() {
       try {
         const mapa = Object.fromEntries(ds.map((d) => [d, p]));
         const r = await api("apply", { op: "base_pct", sell_ids: [E.id], dates: ds, base_pct_por_sell_data: { [E.id]: mapa }, origem: "base manual" });
+        if (sempre && !r.ok && r.erro) throw new Error(`A Stays não aceitou a gravação, nada foi alterado (nem o % permanente). Tente de novo em alguns minutos.\n${(r.erros || []).slice(0, 3).join("\n")}`);
         if (sempre) { await api("base_perm", { sell_id: E.id, pct: p }); const x = await api("base_lista"); SB.perm = Object.fromEntries(x.perm.map((q) => [q.sell_id, q])); }
         fecharModal(); S.grid = null; SB.dados = null;
         alert(r.erro ? `Gravado com ${r.erro} erro(s):\n${(r.erros || []).slice(0, 8).join("\n")}` : `Base atualizada: ${r.ok.toLocaleString("pt-BR")} diárias gravadas na Stays${sempre ? " e as datas novas já vão chegar com o %" : ""}. Está no Histórico, com Desfazer.`);
