@@ -765,9 +765,8 @@ function tipCelula(d, c) {
     let t = c[8] != null
       ? (pe === 0 ? "A noite continua na mesma faixa da tabela, então a automação <b>mantém o seu preço</b>." : `A noite mudou de faixa na tabela: a automação aplica <b>${pe > 0 ? "+" : ""}${pe}% sobre o seu preço</b>${prop ? ` (≈ ${brl(prop[1])} na menor estadia)` : ""}.`)
       : `A automação sugere <b>${sg.pct > 0 ? "+" : ""}${sg.pct}% sobre a base</b> para este dia${prop ? ` (≈ ${brl(prop[1])} na menor estadia)` : ""}.`;
-    if (!(livres > 0)) t += " Como a noite já está vendida ou fechada, nada muda.";
-    else if (sg.protegido && prop && mt && prop[1] < mt[1]) t += ` Período protegido (${esc(sg.protegido.nome)}): só sobe, então o preço fica como está.`;
-    else if (prop && mt && Math.abs(prop[1] - mt[1]) / mt[1] >= 0.05) t += ` Na próxima rodada automática (7h ou 14h), o preço ${prop[1] > mt[1] ? "sobe" : "desce"} para esse valor.`;
+    if (sg.protegido && prop && mt && prop[1] < mt[1]) t += ` Período protegido (${esc(sg.protegido.nome)}): só sobe, então o preço fica como está.`;
+    else if (prop && mt && Math.abs(prop[1] - mt[1]) / mt[1] >= 0.05) t += ` Na próxima rodada automática (7h ou 14h), o preço ${prop[1] > mt[1] ? "sobe" : "desce"} para esse valor${livres > 0 ? "" : " — mesmo vendida ou bloqueada, para voltar certa se cancelar ou desbloquear"}.`;
     else t += " O preço no ar já está nesse nível.";
     linhas.push(t);
   }
@@ -1189,7 +1188,7 @@ function desenharReacao(msg) {
   el.innerHTML = `<label class="rea-on"><input type="checkbox" id="rea-ativo" ${R.ativo !== false ? "checked" : ""}> Usar a reação às vendas na sugestão</label>
    <div class="rea-grid">
     <div><h3>Freio: dias sem reserva</h3>
-     <p class="small mute">Dias desde a última reserva criada <b>que ocupa aquela noite</b> (com qualquer dia de check-in, sem contar reserva do proprietário), divididos pelo <b>intervalo normal da região naquela antecedência</b> (ex.: 4 dias a 15–30 dias do check-in, 10 dias a mais de 30). Assim a mesma configuração serve para região rápida e lenta. Vale só para <b>acréscimos</b> e só se ainda houver unidade livre.</p>
+     <p class="small mute">Dias desde a última reserva criada <b>que ocupa aquela noite</b> (com qualquer dia de check-in, sem contar reserva do proprietário), divididos pelo <b>intervalo normal da região naquela antecedência</b> (ex.: 4 dias a 15–30 dias do check-in, 10 dias a mais de 30). Assim a mesma configuração serve para região rápida e lenta. Vale só para <b>acréscimos</b>, só se ainda houver unidade livre e <b>não vale quando a ocupação da região está em 70% ou mais</b> (a ocupação alta já mostra que há demanda).</p>
      <table class="t rea-t"><tr><th>De (× o normal)</th><th>Até (× o normal)</th><th>Usar do acréscimo</th><th></th></tr>
       ${R.freio.map((f, i) => `<tr><td><input type="number" min="0" step="0.5" data-f="${i}" data-k="de" value="${f.de}"> ×</td>
         <td><input type="number" min="0" step="0.5" data-f="${i}" data-k="ate" value="${f.ate ?? ""}" placeholder="ou mais"> ×</td>
