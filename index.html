@@ -1365,7 +1365,7 @@ async function carregarAuto(msg) {
   try { const r = await api("auto_status"); AUTOCFG = r.config; AUTOCFG_ORIG = JSON.stringify(soAuto(AUTOCFG)); AUTO_RUNS = r.runs; desenharAuto(msg); }
   catch (e) { $("#autob").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
 }
-const soAuto = (c) => ({ ligado: c.ligado, modo: c.modo, horarios: c.horarios, horizonte: c.horizonte, passo_max: c.passo_max, passo_livre_dias: c.passo_livre_dias ?? 7, min_dif: c.min_dif, trava_manual_dias: c.trava_manual_dias, unidades_min: c.unidades_min, max_diarias_rodada: c.max_diarias_rodada, regioes_excluidas: c.regioes_excluidas, protegidos: c.protegidos || [] });
+const soAuto = (c) => ({ ligado: c.ligado, modo: c.modo, horarios: c.horarios, horizonte: c.horizonte, passo_max: c.passo_max, passo_livre_dias: c.passo_livre_dias ?? 7, min_dif: c.min_dif, trava_manual_dias: c.trava_manual_dias, unidades_min: c.unidades_min, max_diarias_rodada: c.max_diarias_rodada, regioes_excluidas: c.regioes_excluidas, margens: c.margens ?? [], protegidos: c.protegidos || [] });
 function desenharAuto(msg) {
   const el = $("#autob"); if (!el) return; const c = AUTOCFG;
   const linha = (id, rot, val, dica, w = 70) => `<label class="au-l"><span>${rot}</span><input id="${id}" type="number" value="${val}" style="width:${w}px"><small>${dica}</small></label>`;
