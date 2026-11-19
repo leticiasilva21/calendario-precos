@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pacotes · Carpediem</title>
+<link rel="icon" href="icone.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--navy:#16294F;--orange:#F26B2E;--orange-soft:#fde9df;--bg:#fff;--panel:#F5F6F9;--line:#E3E6EC;--ink:#16294F;--mute:#5f6676;
+--bad:#B3261E;--bad-soft:#fbe7e5;--ok:#1d7a46;--ok-soft:#e3f4ea;--warn-soft:#fdf3d9;
+--font:"Nunito Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.45}
+.bar-top{background:var(--navy);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.bar-top img{height:30px;display:block}
+.bar-top .t{font-weight:700;font-size:1.05rem;border-left:1px solid rgba(255,255,255,.3);padding-left:16px}
+.bar-top a{color:#fff;opacity:.8;font-size:.85rem}
+.user{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:.85rem}
+.user button{border-color:rgba(255,255,255,.5);color:#fff;background:transparent;padding:3px 10px}
+button{font:inherit;font-weight:700;border:1px solid var(--orange);background:var(--bg);color:var(--orange);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{background:var(--orange-soft)}
+button.prim{background:var(--orange);color:#fff}button.prim:hover{background:#e05d22}
+button[disabled]{opacity:.55;cursor:not-allowed}
+button.link{border:0;background:none;color:var(--navy);text-decoration:underline;padding:0;font-weight:600}
+select,input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.faixa{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.faixa label{display:flex;gap:6px;align-items:center;font-weight:600;color:var(--mute)}
+.wrap{padding:16px;max-width:1200px}
+.mute{color:var(--mute)}.small{font-size:.82rem}.msg{color:var(--bad)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff}
+.card .k{font-size:.78rem;color:var(--mute);font-weight:700}
+.card .v{font-size:1.35rem;font-weight:800}
+.card .s{font-size:.78rem;color:var(--mute)}
+.tbl{overflow:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+thead th{position:sticky;top:0;background:var(--panel);font-size:.78rem;color:var(--mute);z-index:1}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.clic{cursor:pointer}tr.clic:hover td{background:var(--panel)}
+tr.off td{color:#9aa1ae}
+td input.pct{width:72px;text-align:right}
+.nm{max-width:300px;overflow:hidden;text-overflow:ellipsis}
+.tag{display:inline-block;font-size:.72rem;font-weight:700;border-radius:999px;padding:1px 8px;background:var(--panel);color:var(--mute)}
+.tag.livre{background:var(--ok-soft);color:var(--ok)}.tag.parcial{background:var(--warn-soft);color:#8a6100}
+.tag.vendido{background:var(--bad-soft);color:var(--bad)}.tag.margem{background:#e8edf7;color:var(--navy)}
+.down{color:var(--ok);font-weight:700}.up{color:var(--orange);font-weight:700}
+.acoes{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;width:60px;display:inline-block;vertical-align:middle;margin-left:6px}
+.bar i{display:block;height:100%;background:var(--navy)}
+.login{display:flex;justify-content:center;padding:60px 16px}
+.login form{display:flex;flex-direction:column;gap:10px;width:320px}
+.login img{height:40px;align-self:flex-start}
+.login label{display:flex;flex-direction:column;gap:4px;font-weight:600}
+.modal{position:fixed;inset:0;background:rgba(22,41,79,.35);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+.modal .box{background:#fff;border-radius:12px;padding:18px;max-width:560px;width:100%;max-height:85vh;overflow:auto}
+.ok{color:var(--ok)}
+@media (max-width:640px){.wrap{padding:12px}.nm{max-width:180px}}
+</style>
+</head>
+<body>
+<div class="bar-top"><img src="logo-branco.png" alt="Carpediem"><span class="t">Pacotes</span>
+  <a href="./">Calendário de Preços</a><div class="user" id="user"></div></div>
+<div id="app"></div>
+<script>
+const SUPA = "https://ucavfotyciwnqwurzjny.supabase.co";
+const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjYXZmb3R5Y2l3bnF3dXJ6am55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5NzUzNjYsImV4cCI6MjA3MzU1MTM2Nn0.nE_W8wZZvJfzlvhP83ge1J0ooS3EcFVSlQYK28eTGU0";
+const FN = SUPA + "/functions/v1/calendario-precos";
+const DOMINIO = /^[^@\s]+@carpediemhomes\.com\.br$/i;
+const sb = supabase.createClient(SUPA, ANON, { auth: { persistSession: true, detectSessionInUrl: true, storageKey: "calendario-precos-auth" } });
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const brl = (v) => v == null ? "—" : "R$ " + Math.round(v).toLocaleString("pt-BR");
+const pctf = (v) => v == null ? "—" : Math.round(v * 100) + "%";
+const fmtD = (d) => d.slice(8, 10) + "/" + d.slice(5, 7);
+const fmtHora = (iso) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+const hoje = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+
+const qs = new URLSearchParams(location.search);
+const S = { user: null, from: qs.get("de") || (hoje() <= "2026-12-28" ? "2026-12-28" : hoje()), noites: Number(qs.get("noites") || 5),
+  region: qs.get("regiao") || "", dados: null, regioes: [], pct: {}, todos: false, salvando: false };
+
+async function api(action, body = {}) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { telaLogin(); throw new Error("Sessão expirada."); }
+  const r = await fetch(FN, { method: "POST", headers: { apikey: ANON, Authorization: "Bearer " + session.access_token, "Content-Type": "application/json" }, body: JSON.stringify({ action, ...body }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "Erro " + r.status);
+  return j;
+}
+
+/* ---------- login (mesma conta do Calendário de Preços) ---------- */
+function telaLogin(aviso) {
+  $("#user").innerHTML = "";
+  $("#app").innerHTML = `<div class="login"><form id="f"><img src="logo.png" alt="Carpediem Homes">
+    <h2 style="margin:0">Pacotes</h2><span class="mute">Entre com seu e-mail e senha do Calendário de Preços.</span>
+    <label>E-mail<input id="l-email" type="email" autocomplete="username" required></label>
+    <label>Senha<input id="l-senha" type="password" autocomplete="current-password" required></label>
+    <button class="prim" id="l-btn">Entrar</button><span class="msg" id="l-msg">${esc(aviso || "")}</span>
+    <a class="small" href="./">Primeiro acesso ou esqueci minha senha → Calendário de Preços</a></form></div>`;
+  $("#f").onsubmit = async (e) => {
+    e.preventDefault();
+    const email = $("#l-email").value.trim().toLowerCase();
+    if (!DOMINIO.test(email)) return ($("#l-msg").textContent = "Use seu e-mail @carpediemhomes.com.br.");
+    $("#l-btn").disabled = true;
+    const { error } = await sb.auth.signInWithPassword({ email, password: $("#l-senha").value });
+    $("#l-btn").disabled = false;
+    if (error) $("#l-msg").textContent = /invalid/i.test(error.message) ? "E-mail ou senha incorretos." : "Não consegui entrar agora.";
+    else iniciar();
+  };
+}
+
+/* ---------- contas ---------- */
+const fatorDe = (id) => 1 + (Number(S.pct[id]) || 0) / 100;
+function novos(im) {
+  // nova base = base × (1 + %); novo preço = nova base × (1 + ajuste da automação em vigor). Noites vendidas não mudam.
+  let base = 0, baseNova = 0, preco = 0, precoNovo = 0, okBase = true;
+  const f = fatorDe(im.id);
+  for (const x of im.noites) {
+    const livre = Number(x.avail) > 0, b = x.base ?? x.preco;
+    if (x.base == null) okBase = false;
+    if (b == null || x.preco == null) continue;
+    const bn = livre ? Math.round(b * f) : b;
+    base += b; baseNova += bn; preco += x.preco;
+    precoNovo += livre ? Math.round(bn * (1 + (x.pct || 0) / 100)) : x.preco;
+  }
+  return { base, baseNova, preco, precoNovo, okBase };
+}
+function editavel(im) { return im.livres > 0; }
+
+/* ---------- telas ---------- */
+function topo() {
+  const ops = S.regioes.map((r) => `<option ${r === S.region ? "selected" : ""}>${esc(r)}</option>`).join("");
+  return `<div class="faixa">
+    <label>Entrada <input type="date" id="f-de" value="${S.from}" min="${hoje()}"></label>
+    <label>Noites <input type="number" id="f-n" value="${S.noites}" min="2" max="14" style="width:64px"></label>
+    <span class="mute small" id="f-saida"></span>
+    <label>Região <select id="f-reg"><option value="">Todas as regiões</option>${ops}</select></label>
+    <button id="f-ir">Atualizar</button>
+    <span class="mute small" id="f-sync"></span></div><div class="wrap" id="corpo"><p class="mute">Carregando…</p></div>`;
+}
+function saidaTxt() { const d = new Date(S.from + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + S.noites); return "saída " + fmtD(d.toISOString().slice(0, 10)); }
+
+async function carregar() {
+  const qs2 = new URLSearchParams({ de: S.from, noites: S.noites }); if (S.region) qs2.set("regiao", S.region);
+  history.replaceState(null, "", "?" + qs2);
+  $("#corpo").innerHTML = `<p class="mute">Carregando preços e ocupação…</p>`;
+  $("#f-saida").textContent = saidaTxt();
+  try {
+    S.dados = await api("pacote_get", { from: S.from, noites: S.noites, region: S.region || undefined });
+    if (!S.region) S.regioes = S.dados.resumo.map((r) => r.region);
+    if (!S.regioes.length) { const t = await api("pacote_get", { from: S.from, noites: S.noites }); S.regioes = t.resumo.map((r) => r.region); }
+    $("#f-reg").innerHTML = `<option value="">Todas as regiões</option>` + S.regioes.map((r) => `<option ${r === S.region ? "selected" : ""}>${esc(r)}</option>`).join("");
+    $("#f-sync").textContent =S.dados.sync ? "preços lidos da Stays desde " + fmtHora(S.dados.sync) : "";
+    S.pct = {};
+    S.region ? telaRegiao() : telaGeral();
+  } catch (e) { $("#corpo").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
+}
+
+function telaGeral() {
+  const d = S.dados;
+  const linhas = d.resumo.filter((r) => r.anuncios).map((r) => `<tr class="clic" data-r="${esc(r.region)}">
+    <td>${esc(r.region)}</td>
+    <td class="n">${pctf(r.ocupacao)}<span class="bar"><i style="width:${Math.min(100, Math.round((r.ocupacao || 0) * 100))}%"></i></span></td>
+    <td class="n">${r.vend} / ${r.cap}</td>
+    <td class="n">${r.livres}</td><td class="n">${r.parciais}</td><td class="n">${r.vendidos}</td>
+    <td class="n">${brl(r.pacote_medio)}</td></tr>`).join("");
+  $("#corpo").innerHTML = `<p class="mute small">Pacote de ${d.noites} noites: entrada ${fmtD(d.from)}, saída ${fmtD(d.saida)}. Clique numa região para ver os imóveis e aplicar desconto.</p>
+    <div class="tbl"><table><thead><tr><th>Região</th><th class="n">Ocupação</th><th class="n">Noites vend. / cap.</th>
+    <th class="n" title="livres nas noites todas do pacote">Livres</th><th class="n">Parciais</th><th class="n">Vendidos</th><th class="n">Pacote médio</th></tr></thead>
+    <tbody>${linhas}</tbody></table></div>`;
+  document.querySelectorAll("[data-r]").forEach((tr) => (tr.onclick = () => { S.region = tr.dataset.r; $("#f-reg").value = S.region; carregar(); }));
+}
+
+function telaRegiao() {
+  const d = S.dados, r = d.resumo[0] || {};
+  const outros = r.anuncios - r.livres - r.parciais - r.vendidos - r.margens;
+  $("#corpo").innerHTML = `
+    <div class="cards">
+      <div class="card"><div class="k">Ocupação ${fmtD(d.from)}–${fmtD(d.ate)}</div><div class="v">${pctf(r.ocupacao)}</div><div class="s">${r.vend} de ${r.cap} noites vendidas</div></div>
+      <div class="card"><div class="k">Disponíveis no pacote inteiro</div><div class="v">${r.livres}</div><div class="s">livres nas ${d.noites} noites</div></div>
+      <div class="card"><div class="k">Parcialmente vendidos</div><div class="v">${r.parciais}</div><div class="s">algumas noites livres</div></div>
+      <div class="card"><div class="k">Vendidos</div><div class="v">${r.vendidos}</div><div class="s">nenhuma noite livre</div></div>
+      <div class="card"><div class="k">Pacote médio no ar</div><div class="v">${brl(r.pacote_medio)}</div><div class="s">${r.com_pacote} imóveis livres · ${brl(r.pacote_medio ? r.pacote_medio / d.noites : null)}/noite</div></div>
+    </div>
+    <div class="small mute">${r.margens ? r.margens + " margem(ns) de manobra (não contam como estoque). " : ""}${outros > 0 ? outros + " anúncio(s) fora do estoque (bloqueio, proprietário ou contrato encerrado)." : ""}</div>
+    <div class="acoes">
+      <label class="mute" style="font-weight:600">Aplicar a todos os disponíveis <input type="number" id="a-todos" step="1" min="-30" max="50" style="width:72px" placeholder="%"></label>
+      <button id="a-ok">Aplicar</button><button class="link" id="a-zero">Zerar</button>
+      <label class="small mute"><input type="checkbox" id="a-vend" ${S.todos ? "checked" : ""}> mostrar vendidos</label>
+      <span style="margin-left:auto" id="a-tot"></span>
+      <button class="prim" id="salvar" disabled>Salvar na base</button>
+    </div>
+    <div class="tbl"><table><thead><tr><th>Imóvel</th><th>Situação</th><th class="n">Pacote no ar</th><th class="n">Desconto / acréscimo</th>
+      <th class="n">Base do pacote → nova base</th><th class="n">Novo pacote no ar</th></tr></thead><tbody id="linhas"></tbody></table></div>
+    <p class="small mute">Pacote = soma das ${d.noites} diárias na faixa de ${d.noites} noites. O desconto muda a <b>base</b> das noites livres (o ajuste da automação continua valendo por cima), e o Calendário de Preços passa a usar a nova base. Limite: −30% a +50%. Noites já vendidas não mudam.</p>`;
+  linhas();
+  $("#a-ok").onclick = () => { const v = $("#a-todos").value; if (v === "") return; d.imoveis.filter(editavel).forEach((im) => (S.pct[im.id] = Number(v))); linhas(); };
+  $("#a-zero").onclick = () => { S.pct = {}; $("#a-todos").value = ""; linhas(); };
+  $("#a-vend").onchange = (e) => { S.todos = e.target.checked; linhas(); };
+  $("#salvar").onclick = confirmar;
+}
+const ORD = { livre: 0, parcial: 1, margem: 2, vendido: 3, fora: 4 };
+function linhas() {
+  const d = S.dados;
+  const lista = d.imoveis.filter((im) => S.todos || editavel(im)).sort((a, b) => ORD[a.situacao] - ORD[b.situacao] || (b.pacote ?? 0) - (a.pacote ?? 0));
+  $("#linhas").innerHTML = lista.map((im) => {
+    const c = novos(im), p = S.pct[im.id], tem = p !== undefined && p !== "" && Number(p) !== 0;
+    const sit = im.situacao === "livre" ? `<span class="tag livre">livre ${d.noites}/${d.noites}</span>`
+      : im.situacao === "parcial" ? `<span class="tag parcial">${im.livres}/${d.noites} noites livres</span>`
+      : im.situacao === "margem" ? `<span class="tag margem">margem · ${im.livres}/${d.noites} livres</span>`
+      : im.situacao === "vendido" ? `<span class="tag vendido">vendido</span>` : `<span class="tag">fora do estoque</span>`;
+    const pk = im.pacote != null ? brl(im.pacote) : `<span class="mute" title="soma das diárias mesmo com noites vendidas">${brl(c.preco)}*</span>`;
+    const cls = tem ? (Number(p) < 0 ? "down" : "up") : "";
+    return `<tr class="${editavel(im) ? "" : "off"}"><td class="nm" title="${esc(im.nome)}"><b>${esc(im.code || "")}</b> ${esc(im.nome)}</td><td>${sit}</td>
+      <td class="n">${pk}</td>
+      <td class="n">${editavel(im) ? `<input class="pct" type="number" step="1" min="-30" max="50" data-id="${im.id}" value="${p ?? ""}" placeholder="0">%` : ""}</td>
+      <td class="n">${brl(c.base)}${c.okBase ? "" : '<span class="mute" title="sem base guardada: usa o preço no ar">*</span>'}${tem ? ` → <span class="${cls}">${brl(c.baseNova)}</span>` : ""}</td>
+      <td class="n ${cls}">${tem ? brl(c.precoNovo) : ""}</td></tr>`;
+  }).join("") || `<tr><td colspan="6" class="mute">Nenhum imóvel disponível nessas noites.</td></tr>`;
+  document.querySelectorAll("input.pct").forEach((i) => (i.oninput = () => { S.pct[i.dataset.id] = i.value === "" ? undefined : Number(i.value); linhas2(i); }));
+  resumoSalvar();
+}
+function linhas2(input) { // atualiza só a linha editada, sem perder o foco
+  const tr = input.closest("tr"), im = S.dados.imoveis.find((x) => x.id === input.dataset.id), c = novos(im), p = S.pct[im.id];
+  const tem = p !== undefined && Number(p) !== 0, cls = tem ? (Number(p) < 0 ? "down" : "up") : "";
+  tr.cells[4].innerHTML = `${brl(c.base)}${c.okBase ? "" : '<span class="mute">*</span>'}${tem ? ` → <span class="${cls}">${brl(c.baseNova)}</span>` : ""}`;
+  tr.cells[5].className = "n " + cls; tr.cells[5].innerHTML = tem ? brl(c.precoNovo) : "";
+  resumoSalvar();
+}
+function mudancas() {
+  return S.dados.imoveis.filter((im) => editavel(im) && S.pct[im.id] !== undefined && Number(S.pct[im.id]) !== 0);
+}
+function resumoSalvar() {
+  const m = mudancas(), inval = m.filter((im) => !(Number(S.pct[im.id]) >= -30 && Number(S.pct[im.id]) <= 50));
+  const antes = m.reduce((a, im) => a + novos({ ...im, id: "_" }).preco, 0), depois = m.reduce((a, im) => a + novos(im).precoNovo, 0);
+  $("#a-tot").innerHTML = inval.length ? `<span class="msg">${inval.length} valor(es) fora de −30% a +50%</span>`
+    : m.length ? `<span class="small">${m.length} imóvel(is) · pacotes ${brl(antes)} → <b>${brl(depois)}</b></span>` : "";
+  $("#salvar").disabled = !m.length || inval.length > 0 || S.salvando;
+}
+
+/* ---------- salvar ---------- */
+function confirmar() {
+  const m = mudancas(), d = S.dados;
+  const noites = m.reduce((a, im) => a + im.noites.filter((x) => Number(x.avail) > 0).length, 0);
+  const el = document.createElement("div"); el.className = "modal";
+  el.innerHTML = `<div class="box"><h3 style="margin-top:0">Salvar na base?</h3>
+    <p>${esc(S.region)} · noites de ${fmtD(d.from)} a ${fmtD(d.ate)}</p>
+    <p><b>${m.length}</b> imóvel(is), <b>${noites}</b> diárias livres. A base dessas noites muda no Calendário de Preços e o novo preço é gravado na Stays agora.</p>
+    <div class="tbl" style="max-height:240px"><table><tbody>${m.map((im) => `<tr><td class="nm">${esc(im.code || im.nome)}</td><td class="n">${S.pct[im.id] > 0 ? "+" : ""}${S.pct[im.id]}%</td><td class="n">${brl(novos(im).precoNovo)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="small mute">Fica no Histórico do Calendário com a origem "pacote" e pode ser desfeito por lá.</p>
+    <div style="display:flex;gap:10px;justify-content:flex-end"><button id="m-n">Cancelar</button><button class="prim" id="m-s">Salvar</button></div>
+    <div id="m-msg" class="small"></div></div>`;
+  document.body.appendChild(el);
+  $("#m-n").onclick = () => el.remove();
+  $("#m-s").onclick = () => salvar(el, m);
+}
+async function salvar(el, m) {
+  const d = S.dados; S.salvando = true;
+  $("#m-s").disabled = $("#m-n").disabled = true;
+  const tot = { ok: 0, sem_mudanca: 0, erro: 0, erros: [] };
+  const origem = `pacote ${fmtD(d.from)}–${fmtD(d.saida)} (${d.noites} noites)`;
+  for (let i = 0; i < m.length; i += 8) {
+    const lote = m.slice(i, i + 8), mapa = {};
+    for (const im of lote) { mapa[im.id] = {}; for (const x of im.noites) if (Number(x.avail) > 0) mapa[im.id][x.date] = Number(S.pct[im.id]); }
+    $("#m-msg").textContent = `Gravando ${Math.min(i + 8, m.length)} de ${m.length}…`;
+    try {
+      const r = await api("apply", { op: "base_pct", sell_ids: lote.map((x) => x.id), dates: d.datas, base_pct_por_sell_data: mapa, origem });
+      tot.ok += r.ok || 0; tot.sem_mudanca += r.sem_mudanca || 0; tot.erro += r.erro || 0; tot.erros.push(...(r.erros || []));
+    } catch (e) { tot.erro += lote.length; tot.erros.push(e.message); }
+  }
+  S.salvando = false;
+  $("#m-msg").innerHTML = `<p class="${tot.erro ? "msg" : "ok"}"><b>${tot.ok}</b> diárias gravadas${tot.sem_mudanca ? `, ${tot.sem_mudanca} já estavam no valor` : ""}${tot.erro ? `, <b>${tot.erro} com erro</b>` : ""}.</p>
+    ${tot.erros.length ? `<div class="msg">${tot.erros.slice(0, 8).map(esc).join("<br>")}</div>` : ""}`;
+  $("#m-n").disabled = false; $("#m-n").textContent = "Fechar";
+  $("#m-n").onclick = () => { el.remove(); carregar(); };
+}
+
+/* ---------- início ---------- */
+async function iniciar() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return telaLogin();
+  if (!DOMINIO.test(session.user.email || "")) { await sb.auth.signOut(); return telaLogin("Só contas @carpediemhomes.com.br."); }
+  S.user = session.user.email;
+  $("#user").innerHTML = `<span>${esc(S.user)}</span><button id="sair">Sair</button>`;
+  $("#sair").onclick = async () => { await sb.auth.signOut(); S.user = null; telaLogin(); };
+  $("#app").innerHTML = topo();
+  const ir = () => {
+    const de = $("#f-de").value, n = Math.round(Number($("#f-n").value));
+    if (!de || de < hoje()) return alert("Escolha uma data de entrada futura.");
+    if (!(n >= 2 && n <= 14)) return alert("Pacote de 2 a 14 noites.");
+    S.from = de; S.noites = n; S.region = $("#f-reg").value; carregar();
+  };
+  $("#f-ir").onclick = ir; $("#f-reg").onchange = ir;
+  carregar();
+}
+iniciar();
+</script>
+</body>
+</html>
