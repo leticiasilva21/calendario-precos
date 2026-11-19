@@ -146,7 +146,7 @@ function editavel(im) { return im.livres > 0 && novos(im).atual > 0; } // noite 
 
 /* ---------- telas ---------- */
 function topo() {
-  const ops = S.regioes.map((r) => `<option ${r === S.region ? "selected" : ""}>${esc(r)}</option>`).join("");
+  const ops = S.regioes.map((r) => `<option value="${esc(r)}" ${r === S.region ? "selected" : ""}>${esc(r)}</option>`).join("");
   return `<div class="faixa">
     <label>Entrada <input type="date" id="f-de" value="${S.from}" min="${hoje()}"></label>
     <label>Noites <input type="number" id="f-n" value="${S.noites}" min="2" max="14" style="width:64px"></label>
@@ -166,7 +166,7 @@ async function carregar() {
     S.dados = await api("pacote_get", { from: S.from, noites: S.noites, region: S.region || undefined });
     if (!S.region) S.regioes = S.dados.resumo.map((r) => r.region);
     if (!S.regioes.length) { const t = await api("pacote_get", { from: S.from, noites: S.noites }); S.regioes = t.resumo.map((r) => r.region); }
-    $("#f-reg").innerHTML = `<option value="">Todas as regiões</option>` + S.regioes.map((r) => `<option ${r === S.region ? "selected" : ""}>${esc(r)}</option>`).join("");
+    $("#f-reg").innerHTML = `<option value="">Todas as regiões</option>` + S.regioes.map((r) => `<option value="${esc(r)}" ${r === S.region ? "selected" : ""}>${esc(r)}</option>`).join("");
     $("#f-sync").textContent =S.dados.sync ? "preços lidos da Stays desde " + fmtHora(S.dados.sync) : "";
     S.pct = {};
     S.region ? telaRegiao() : telaGeral();
