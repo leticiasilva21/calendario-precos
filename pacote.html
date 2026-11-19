@@ -115,13 +115,34 @@ function telaLogin(aviso) {
 
 /* ---------- contas ---------- */
 // pacote = soma das diárias no ar das noites livres; novo pacote = cada diária × (1 + %), e esse valor vira a base
+// noites livres em sequência (ex.: só 28/12, ou 28–30/12): cada sequência vende na faixa de estadia do seu tamanho
+function trechos(im) {
+  const out = []; let cur = null;
+  for (const x of im.noites) {
+    if (Number(x.avail) > 0) { if (!cur) out.push((cur = [])); cur.push(x); } else cur = null;
+  }
+  return out;
+}
+function faixa(t, n) { const x = (t || []).filter((v) => v[0] <= n).sort((a, b) => b[0] - a[0])[0]; return x ? Number(x[1]) : null; }
+function minEstadia(t) { const m = (t || []).map((v) => v[0]).sort((a, b) => a - b)[0]; return m ?? null; }
+// pacote = soma das diárias no ar das noites livres (na faixa do tamanho do trecho livre); novo = cada diária × (1 + %), e vira a base
 function novos(im) {
   const f = 1 + (Number(S.pct[im.id]) || 0) / 100;
-  let atual = 0, novo = 0;
-  for (const x of im.noites) if (Number(x.avail) > 0 && x.preco != null) { atual += x.preco; novo += Math.round(x.preco * f); }
-  return { atual, novo };
+  let atual = 0, novo = 0, naoVende = [];
+  for (const tr of trechos(im)) {
+    const L = tr.length;
+    for (const x of tr) {
+      const v = x.tiers ? faixa(x.tiers, L) : (L === S.dados.noites ? x.preco : null);
+      if (v == null) { naoVende.push({ L, min: minEstadia(x.tiers) }); continue; }
+      atual += v; novo += Math.round(v * f);
+    }
+  }
+  return { atual, novo, naoVende };
 }
-function editavel(im) { return im.livres > 0; }
+function trechoTxt(im) {
+  return trechos(im).map((tr) => tr.length === 1 ? "só " + fmtD(tr[0].date) : fmtD(tr[0].date) + "–" + fmtD(tr[tr.length - 1].date)).join(", ");
+}
+function editavel(im) { return im.livres > 0 && novos(im).atual > 0; } // noite solta abaixo da estadia mínima não vende: sem desconto
 
 /* ---------- telas ---------- */
 function topo() {
@@ -188,7 +209,7 @@ function telaRegiao() {
     </div>
     <div class="tbl"><table><thead><tr><th>Imóvel</th><th>Situação</th><th class="n">Pacote atual</th><th class="n">Desconto / acréscimo</th>
       <th class="n">Novo pacote</th></tr></thead><tbody id="linhas"></tbody></table></div>
-    <p class="small mute">Pacote = soma das ${d.noites} diárias que estão no ar na Stays (faixa de ${d.noites} noites). Ao salvar, o <b>novo pacote vira a base</b> dessas noites no Calendário de Preços e é gravado na Stays. Imóvel parcialmente vendido: o valor é só das noites livres. Limite: −30% a +50%.</p>`;
+    <p class="small mute">Pacote = soma das ${d.noites} diárias que estão no ar na Stays (faixa de ${d.noites} noites). Ao salvar, o <b>novo pacote vira a base</b> dessas noites no Calendário de Preços e é gravado na Stays. Imóvel parcialmente vendido: o valor é só das noites livres, na faixa de estadia que elas conseguem vender (ex.: uma noite solta usa o preço de 1 noite). Limite: −30% a +50%.</p>`;
   linhas();
   $("#a-ok").onclick = () => { const v = $("#a-todos").value; if (v === "") return; d.imoveis.filter(editavel).forEach((im) => (S.pct[im.id] = Number(v))); linhas(); };
   $("#a-zero").onclick = () => { S.pct = {}; $("#a-todos").value = ""; linhas(); };
@@ -198,16 +219,17 @@ function telaRegiao() {
 const ORD = { livre: 0, parcial: 1, margem: 2, vendido: 3, fora: 4 };
 function linhas() {
   const d = S.dados;
-  const lista = d.imoveis.filter((im) => S.todos || editavel(im)).sort((a, b) => ORD[a.situacao] - ORD[b.situacao] || (b.pacote ?? 0) - (a.pacote ?? 0));
+  const lista = d.imoveis.filter((im) => S.todos || im.livres > 0).sort((a, b) => ORD[a.situacao] - ORD[b.situacao] || (b.pacote ?? 0) - (a.pacote ?? 0));
   $("#linhas").innerHTML = lista.map((im) => {
     const c = novos(im), p = S.pct[im.id], tem = p !== undefined && p !== "" && Number(p) !== 0;
     const sit = im.situacao === "livre" ? `<span class="tag livre">livre ${d.noites}/${d.noites}</span>`
-      : im.situacao === "parcial" ? `<span class="tag parcial">${im.livres}/${d.noites} noites livres</span>`
+      : im.situacao === "parcial" ? `<span class="tag parcial" title="noites livres: ${trechoTxt(im)}">${trechoTxt(im)} livre${im.livres > 1 ? "s" : ""}</span>`
       : im.situacao === "margem" ? `<span class="tag margem">margem · ${im.livres}/${d.noites} livres</span>`
       : im.situacao === "vendido" ? `<span class="tag vendido">vendido</span>` : `<span class="tag">fora do estoque</span>`;
     const cls = tem ? (Number(p) < 0 ? "down" : "up") : "";
     return `<tr class="${editavel(im) ? "" : "off"}"><td class="nm" title="${esc(im.nome)}"><b>${esc(im.code || "")}</b> ${esc(im.nome)}</td><td>${sit}</td>
-      <td class="n">${editavel(im) ? brl(c.atual) : ""}</td>
+      <td class="n">${!(im.livres > 0) ? "" : im.livres === d.noites ? brl(c.atual)
+        : `${c.atual ? brl(c.atual) : ""}<div class="small mute">${c.naoVende.length ? `não vende: mín. ${c.naoVende[0].min} noites` : `${im.livres} noite${im.livres > 1 ? "s" : ""}, não forma o pacote`}</div>`}</td>
       <td class="n">${editavel(im) ? `<input class="pct" type="number" step="1" min="-30" max="50" data-id="${im.id}" value="${p ?? ""}" placeholder="0">%` : ""}</td>
       <td class="n ${cls}">${tem ? brl(c.novo) : ""}</td></tr>`;
   }).join("") || `<tr><td colspan="5" class="mute">Nenhum imóvel disponível nessas noites.</td></tr>`;
