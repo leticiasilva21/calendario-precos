@@ -46,7 +46,7 @@ td input.pct{width:72px;text-align:right}
 .nm{max-width:300px;overflow:hidden;text-overflow:ellipsis}
 .tag{display:inline-block;font-size:.72rem;font-weight:700;border-radius:999px;padding:1px 8px;background:var(--panel);color:var(--mute)}
 .tag.livre{background:var(--ok-soft);color:var(--ok)}.tag.parcial{background:var(--warn-soft);color:#8a6100}
-.tag.vendido{background:var(--bad-soft);color:var(--bad)}.tag.margem{background:#e8edf7;color:var(--navy)}
+.tag.ind{background:#f1e9fb;color:#5b2a86}.tag.vendido{background:var(--bad-soft);color:var(--bad)}.tag.margem{background:#e8edf7;color:var(--navy)}
 .down{color:var(--ok);font-weight:700}.up{color:var(--orange);font-weight:700}
 .acoes{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}
 .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;width:60px;display:inline-block;vertical-align:middle;margin-left:6px}
@@ -160,14 +160,14 @@ function saidaTxt() { const d = new Date(S.from + "T12:00:00Z"); d.setUTCDate(d.
 async function carregar() {
   const qs2 = new URLSearchParams({ de: S.from, noites: S.noites }); if (S.region) qs2.set("regiao", S.region);
   history.replaceState(null, "", "?" + qs2);
-  $("#corpo").innerHTML = `<p class="mute">Carregando preços e ocupação…</p>`;
+  $("#corpo").innerHTML = `<p class="mute">${S.region ? "Lendo preços e vagas direto da Stays (até 15 segundos)…" : "Carregando preços e ocupação…"}</p>`;
   $("#f-saida").textContent = saidaTxt();
   try {
     S.dados = await api("pacote_get", { from: S.from, noites: S.noites, region: S.region || undefined });
     if (!S.region) S.regioes = S.dados.resumo.map((r) => r.region);
     if (!S.regioes.length) { const t = await api("pacote_get", { from: S.from, noites: S.noites }); S.regioes = t.resumo.map((r) => r.region); }
     $("#f-reg").innerHTML = `<option value="">Todas as regiões</option>` + S.regioes.map((r) => `<option value="${esc(r)}" ${r === S.region ? "selected" : ""}>${esc(r)}</option>`).join("");
-    $("#f-sync").textContent =S.dados.sync ? "preços lidos da Stays desde " + fmtHora(S.dados.sync) : "";
+    $("#f-sync").textContent = S.dados.ao_vivo ? "preços e vagas lidos da Stays agora (" + fmtHora(S.dados.sync) + ")" : S.dados.sync ? "preços lidos da Stays desde " + fmtHora(S.dados.sync) + " · abra a região para ver ao vivo" : "";
     S.pct = {};
     S.region ? telaRegiao() : telaGeral();
   } catch (e) { $("#corpo").innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
@@ -179,31 +179,30 @@ function telaGeral() {
     <td>${esc(r.region)}</td>
     <td class="n">${pctf(r.ocupacao)}<span class="bar"><i style="width:${Math.min(100, Math.round((r.ocupacao || 0) * 100))}%"></i></span></td>
     <td class="n">${r.vend} / ${r.cap}</td>
-    <td class="n">${r.livres}</td><td class="n">${r.parciais}</td><td class="n">${r.vendidos}</td>
+    <td class="n">${r.livres}</td><td class="n">${r.parciais}</td><td class="n">${r.sem_vaga}</td>
     <td class="n">${brl(r.pacote_medio)}</td></tr>`).join("");
   $("#corpo").innerHTML = `<p class="mute small">Pacote de ${d.noites} noites: entrada ${fmtD(d.from)}, saída ${fmtD(d.saida)}. Clique numa região para ver os imóveis e aplicar desconto.</p>
     <div class="tbl"><table><thead><tr><th>Região</th><th class="n">Ocupação</th><th class="n">Noites vend. / cap.</th>
-    <th class="n" title="livres nas noites todas do pacote">Livres</th><th class="n">Parciais</th><th class="n">Vendidos</th><th class="n">Pacote médio</th></tr></thead>
+    <th class="n" title="livres nas noites todas do pacote">Livres</th><th class="n">Parciais</th><th class="n" title="nenhuma noite livre: vendido ou bloqueado">Sem vaga</th><th class="n">Pacote médio</th></tr></thead>
     <tbody>${linhas}</tbody></table></div>`;
   document.querySelectorAll("[data-r]").forEach((tr) => (tr.onclick = () => { S.region = tr.dataset.r; $("#f-reg").value = S.region; carregar(); }));
 }
 
 function telaRegiao() {
   const d = S.dados, r = d.resumo[0] || {};
-  const outros = r.anuncios - r.livres - r.parciais - r.vendidos - r.margens;
   $("#corpo").innerHTML = `
     <div class="cards">
       <div class="card"><div class="k">Ocupação ${fmtD(d.from)}–${fmtD(d.ate)}</div><div class="v">${pctf(r.ocupacao)}</div><div class="s">${r.vend} de ${r.cap} noites vendidas</div></div>
       <div class="card"><div class="k">Disponíveis no pacote inteiro</div><div class="v">${r.livres}</div><div class="s">livres nas ${d.noites} noites</div></div>
-      <div class="card"><div class="k">Parcialmente vendidos</div><div class="v">${r.parciais}</div><div class="s">algumas noites livres</div></div>
-      <div class="card"><div class="k">Vendidos</div><div class="v">${r.vendidos}</div><div class="s">nenhuma noite livre</div></div>
+      <div class="card"><div class="k">Parcialmente livres</div><div class="v">${r.parciais}</div><div class="s">só algumas noites livres</div></div>
+      <div class="card"><div class="k">Sem vaga</div><div class="v">${r.sem_vaga}</div><div class="s">nenhuma noite livre (vendido ou bloqueado)</div></div>
       <div class="card"><div class="k">Pacote médio no ar</div><div class="v">${brl(r.pacote_medio)}</div><div class="s">${r.com_pacote} imóveis livres · ${brl(r.pacote_medio ? r.pacote_medio / d.noites : null)}/noite</div></div>
     </div>
-    <div class="small mute">${r.margens ? r.margens + " margem(ns) de manobra (não contam como estoque). " : ""}${outros > 0 ? outros + " anúncio(s) fora do estoque (bloqueio, proprietário ou contrato encerrado)." : ""}</div>
+    <div class="small mute">${r.anuncios} anúncios ativos na região${r.individuais ? `, dos quais ${r.individuais} são o 2º anúncio (individual) de um apê também anunciado pelo prédio — cada um tem preço próprio na Stays` : ""}${r.margens ? `; ${r.margens} margem(ns) de manobra` : ""}. A ocupação conta cada apê uma vez só.</div>
     <div class="acoes">
       <label class="mute" style="font-weight:600">Aplicar a todos os disponíveis <input type="number" id="a-todos" step="1" min="-30" max="50" style="width:72px" placeholder="%"></label>
       <button id="a-ok">Aplicar</button><button class="link" id="a-zero">Zerar</button>
-      <label class="small mute"><input type="checkbox" id="a-vend" ${S.todos ? "checked" : ""}> mostrar vendidos</label>
+      <label class="small mute"><input type="checkbox" id="a-vend" ${S.todos ? "checked" : ""}> mostrar sem vaga</label>
       <span style="margin-left:auto" id="a-tot"></span>
       <button class="prim" id="salvar" disabled>Salvar na base</button>
     </div>
@@ -216,16 +215,19 @@ function telaRegiao() {
   $("#a-vend").onchange = (e) => { S.todos = e.target.checked; linhas(); };
   $("#salvar").onclick = confirmar;
 }
-const ORD = { livre: 0, parcial: 1, margem: 2, vendido: 3, fora: 4 };
+const ORD = { livre: 0, parcial: 1, sem_vaga: 2 };
 function linhas() {
   const d = S.dados;
   const lista = d.imoveis.filter((im) => S.todos || im.livres > 0).sort((a, b) => ORD[a.situacao] - ORD[b.situacao] || (b.pacote ?? 0) - (a.pacote ?? 0));
   $("#linhas").innerHTML = lista.map((im) => {
     const c = novos(im), p = S.pct[im.id], tem = p !== undefined && p !== "" && Number(p) !== 0;
-    const sit = im.situacao === "livre" ? `<span class="tag livre">livre ${d.noites}/${d.noites}</span>`
+    const vagas = Math.min(...im.noites.filter((x) => Number(x.avail) > 0).map((x) => Number(x.avail)));
+    const sit = (im.situacao === "livre" ? `<span class="tag livre">livre ${d.noites}/${d.noites}${vagas > 1 ? ` · ${vagas} vagas` : ""}</span>`
       : im.situacao === "parcial" ? `<span class="tag parcial" title="noites livres: ${trechoTxt(im)}">${trechoTxt(im)} livre${im.livres > 1 ? "s" : ""}</span>`
-      : im.situacao === "margem" ? `<span class="tag margem">margem · ${im.livres}/${d.noites} livres</span>`
-      : im.situacao === "vendido" ? `<span class="tag vendido">vendido</span>` : `<span class="tag">fora do estoque</span>`;
+      : `<span class="tag vendido">sem vaga</span>`)
+      + (im.margem ? ` <span class="tag margem">margem</span>` : "")
+      + (im.individual ? ` <span class="tag ind" title="mesmo apê também anunciado pelo prédio${im.par ? ": " + esc(im.par) : ""}. Preço próprio na Stays.">2º anúncio${im.par ? " · par " + esc(im.par.split(" ")[0]) : ""}</span>` : "")
+      + (!im.individual && im.par ? ` <span class="tag ind" title="mesmo apê também anunciado como individual: ${esc(im.par)}. Preço próprio na Stays.">par ${esc(im.par)}</span>` : "");
     const cls = tem ? (Number(p) < 0 ? "down" : "up") : "";
     return `<tr class="${editavel(im) ? "" : "off"}"><td class="nm" title="${esc(im.nome)}"><b>${esc(im.code || "")}</b> ${esc(im.nome)}</td><td>${sit}</td>
       <td class="n">${!(im.livres > 0) ? "" : im.livres === d.noites ? brl(c.atual)
