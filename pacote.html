@@ -114,20 +114,12 @@ function telaLogin(aviso) {
 }
 
 /* ---------- contas ---------- */
-const fatorDe = (id) => 1 + (Number(S.pct[id]) || 0) / 100;
+// pacote = soma das diárias no ar das noites livres; novo pacote = cada diária × (1 + %), e esse valor vira a base
 function novos(im) {
-  // nova base = base × (1 + %); novo preço = nova base × (1 + ajuste da automação em vigor). Noites vendidas não mudam.
-  let base = 0, baseNova = 0, preco = 0, precoNovo = 0, okBase = true;
-  const f = fatorDe(im.id);
-  for (const x of im.noites) {
-    const livre = Number(x.avail) > 0, b = x.base ?? x.preco;
-    if (x.base == null) okBase = false;
-    if (b == null || x.preco == null) continue;
-    const bn = livre ? Math.round(b * f) : b;
-    base += b; baseNova += bn; preco += x.preco;
-    precoNovo += livre ? Math.round(bn * (1 + (x.pct || 0) / 100)) : x.preco;
-  }
-  return { base, baseNova, preco, precoNovo, okBase };
+  const f = 1 + (Number(S.pct[im.id]) || 0) / 100;
+  let atual = 0, novo = 0;
+  for (const x of im.noites) if (Number(x.avail) > 0 && x.preco != null) { atual += x.preco; novo += Math.round(x.preco * f); }
+  return { atual, novo };
 }
 function editavel(im) { return im.livres > 0; }
 
@@ -194,9 +186,9 @@ function telaRegiao() {
       <span style="margin-left:auto" id="a-tot"></span>
       <button class="prim" id="salvar" disabled>Salvar na base</button>
     </div>
-    <div class="tbl"><table><thead><tr><th>Imóvel</th><th>Situação</th><th class="n">Pacote no ar</th><th class="n">Desconto / acréscimo</th>
-      <th class="n">Base do pacote → nova base</th><th class="n">Novo pacote no ar</th></tr></thead><tbody id="linhas"></tbody></table></div>
-    <p class="small mute">Pacote = soma das ${d.noites} diárias na faixa de ${d.noites} noites. O desconto muda a <b>base</b> das noites livres (o ajuste da automação continua valendo por cima), e o Calendário de Preços passa a usar a nova base. Limite: −30% a +50%. Noites já vendidas não mudam.</p>`;
+    <div class="tbl"><table><thead><tr><th>Imóvel</th><th>Situação</th><th class="n">Pacote atual</th><th class="n">Desconto / acréscimo</th>
+      <th class="n">Novo pacote</th></tr></thead><tbody id="linhas"></tbody></table></div>
+    <p class="small mute">Pacote = soma das ${d.noites} diárias que estão no ar na Stays (faixa de ${d.noites} noites). Ao salvar, o <b>novo pacote vira a base</b> dessas noites no Calendário de Preços e é gravado na Stays. Imóvel parcialmente vendido: o valor é só das noites livres. Limite: −30% a +50%.</p>`;
   linhas();
   $("#a-ok").onclick = () => { const v = $("#a-todos").value; if (v === "") return; d.imoveis.filter(editavel).forEach((im) => (S.pct[im.id] = Number(v))); linhas(); };
   $("#a-zero").onclick = () => { S.pct = {}; $("#a-todos").value = ""; linhas(); };
@@ -213,22 +205,19 @@ function linhas() {
       : im.situacao === "parcial" ? `<span class="tag parcial">${im.livres}/${d.noites} noites livres</span>`
       : im.situacao === "margem" ? `<span class="tag margem">margem · ${im.livres}/${d.noites} livres</span>`
       : im.situacao === "vendido" ? `<span class="tag vendido">vendido</span>` : `<span class="tag">fora do estoque</span>`;
-    const pk = im.pacote != null ? brl(im.pacote) : `<span class="mute" title="soma das diárias mesmo com noites vendidas">${brl(c.preco)}*</span>`;
     const cls = tem ? (Number(p) < 0 ? "down" : "up") : "";
     return `<tr class="${editavel(im) ? "" : "off"}"><td class="nm" title="${esc(im.nome)}"><b>${esc(im.code || "")}</b> ${esc(im.nome)}</td><td>${sit}</td>
-      <td class="n">${pk}</td>
+      <td class="n">${editavel(im) ? brl(c.atual) : ""}</td>
       <td class="n">${editavel(im) ? `<input class="pct" type="number" step="1" min="-30" max="50" data-id="${im.id}" value="${p ?? ""}" placeholder="0">%` : ""}</td>
-      <td class="n">${brl(c.base)}${c.okBase ? "" : '<span class="mute" title="sem base guardada: usa o preço no ar">*</span>'}${tem ? ` → <span class="${cls}">${brl(c.baseNova)}</span>` : ""}</td>
-      <td class="n ${cls}">${tem ? brl(c.precoNovo) : ""}</td></tr>`;
-  }).join("") || `<tr><td colspan="6" class="mute">Nenhum imóvel disponível nessas noites.</td></tr>`;
+      <td class="n ${cls}">${tem ? brl(c.novo) : ""}</td></tr>`;
+  }).join("") || `<tr><td colspan="5" class="mute">Nenhum imóvel disponível nessas noites.</td></tr>`;
   document.querySelectorAll("input.pct").forEach((i) => (i.oninput = () => { S.pct[i.dataset.id] = i.value === "" ? undefined : Number(i.value); linhas2(i); }));
   resumoSalvar();
 }
 function linhas2(input) { // atualiza só a linha editada, sem perder o foco
   const tr = input.closest("tr"), im = S.dados.imoveis.find((x) => x.id === input.dataset.id), c = novos(im), p = S.pct[im.id];
   const tem = p !== undefined && Number(p) !== 0, cls = tem ? (Number(p) < 0 ? "down" : "up") : "";
-  tr.cells[4].innerHTML = `${brl(c.base)}${c.okBase ? "" : '<span class="mute">*</span>'}${tem ? ` → <span class="${cls}">${brl(c.baseNova)}</span>` : ""}`;
-  tr.cells[5].className = "n " + cls; tr.cells[5].innerHTML = tem ? brl(c.precoNovo) : "";
+  tr.cells[4].className = "n " + cls; tr.cells[4].innerHTML = tem ? brl(c.novo) : "";
   resumoSalvar();
 }
 function mudancas() {
@@ -236,7 +225,7 @@ function mudancas() {
 }
 function resumoSalvar() {
   const m = mudancas(), inval = m.filter((im) => !(Number(S.pct[im.id]) >= -30 && Number(S.pct[im.id]) <= 50));
-  const antes = m.reduce((a, im) => a + novos({ ...im, id: "_" }).preco, 0), depois = m.reduce((a, im) => a + novos(im).precoNovo, 0);
+  const antes = m.reduce((a, im) => a + novos(im).atual, 0), depois = m.reduce((a, im) => a + novos(im).novo, 0);
   $("#a-tot").innerHTML = inval.length ? `<span class="msg">${inval.length} valor(es) fora de −30% a +50%</span>`
     : m.length ? `<span class="small">${m.length} imóvel(is) · pacotes ${brl(antes)} → <b>${brl(depois)}</b></span>` : "";
   $("#salvar").disabled = !m.length || inval.length > 0 || S.salvando;
@@ -249,9 +238,9 @@ function confirmar() {
   const el = document.createElement("div"); el.className = "modal";
   el.innerHTML = `<div class="box"><h3 style="margin-top:0">Salvar na base?</h3>
     <p>${esc(S.region)} · noites de ${fmtD(d.from)} a ${fmtD(d.ate)}</p>
-    <p><b>${m.length}</b> imóvel(is), <b>${noites}</b> diárias livres. A base dessas noites muda no Calendário de Preços e o novo preço é gravado na Stays agora.</p>
-    <div class="tbl" style="max-height:240px"><table><tbody>${m.map((im) => `<tr><td class="nm">${esc(im.code || im.nome)}</td><td class="n">${S.pct[im.id] > 0 ? "+" : ""}${S.pct[im.id]}%</td><td class="n">${brl(novos(im).precoNovo)}</td></tr>`).join("")}</tbody></table></div>
-    <p class="small mute">Fica no Histórico do Calendário com a origem "pacote" e pode ser desfeito por lá.</p>
+    <p><b>${m.length}</b> imóvel(is), <b>${noites}</b> diárias livres. O novo pacote é gravado na Stays agora e passa a ser a base dessas noites no Calendário de Preços.</p>
+    <div class="tbl" style="max-height:240px"><table><tbody>${m.map((im) => `<tr><td class="nm">${esc(im.code || im.nome)}</td><td class="n">${S.pct[im.id] > 0 ? "+" : ""}${S.pct[im.id]}%</td><td class="n">${brl(novos(im).atual)} → <b>${brl(novos(im).novo)}</b></td></tr>`).join("")}</tbody></table></div>
+    <p class="small mute">Fica no Histórico do Calendário como ajuste manual (pacote) e pode ser desfeito por lá. A automação mantém esse preço enquanto a ocupação da região não mudar de faixa.</p>
     <div style="display:flex;gap:10px;justify-content:flex-end"><button id="m-n">Cancelar</button><button class="prim" id="m-s">Salvar</button></div>
     <div id="m-msg" class="small"></div></div>`;
   document.body.appendChild(el);
@@ -262,13 +251,13 @@ async function salvar(el, m) {
   const d = S.dados; S.salvando = true;
   $("#m-s").disabled = $("#m-n").disabled = true;
   const tot = { ok: 0, sem_mudanca: 0, erro: 0, erros: [] };
-  const origem = `pacote ${fmtD(d.from)}–${fmtD(d.saida)} (${d.noites} noites)`;
+  const origem = `manual (pacote ${fmtD(d.from)}–${fmtD(d.saida)})`;
   for (let i = 0; i < m.length; i += 8) {
-    const lote = m.slice(i, i + 8), mapa = {};
-    for (const im of lote) { mapa[im.id] = {}; for (const x of im.noites) if (Number(x.avail) > 0) mapa[im.id][x.date] = Number(S.pct[im.id]); }
+    const lote = m.slice(i, i + 8), pcts = {}, datas = {};
+    for (const im of lote) { pcts[im.id] = Number(S.pct[im.id]); datas[im.id] = im.noites.filter((x) => Number(x.avail) > 0).map((x) => x.date); }
     $("#m-msg").textContent = `Gravando ${Math.min(i + 8, m.length)} de ${m.length}…`;
     try {
-      const r = await api("apply", { op: "base_pct", sell_ids: lote.map((x) => x.id), dates: d.datas, base_pct_por_sell_data: mapa, origem });
+      const r = await api("apply", { op: "pct", sell_ids: lote.map((x) => x.id), dates: d.datas, pct_manual_por_sell: pcts, datas_por_sell: datas, origem });
       tot.ok += r.ok || 0; tot.sem_mudanca += r.sem_mudanca || 0; tot.erro += r.erro || 0; tot.erros.push(...(r.erros || []));
     } catch (e) { tot.erro += lote.length; tot.erros.push(e.message); }
   }
